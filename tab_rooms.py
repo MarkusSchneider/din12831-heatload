@@ -340,7 +340,20 @@ def render_wall_list(room: Room, room_idx: int) -> None:
 
 def render_wall_openings(room: Room, room_idx: int, wall: Wall, wall_idx: int) -> None:
     """Zeigt Fenster und Türen einer Wand."""
-    st.write("**Fenster & Türen**")
+    # Header und Button in derselben Zeile
+    form_state_key = f"show_opening_form_{room_idx}_{wall_idx}"
+    show_form = st.session_state.get(form_state_key, False)
+
+    header_cols = st.columns([20, 1])
+    with header_cols[0]:
+        st.write("**Fenster & Türen**")
+    with header_cols[1]:
+        if st.button("➕" if not show_form else "✖️",
+                     key=f"toggle_opening_form_{room_idx}_{wall_idx}",
+                     type="secondary",
+                     use_container_width=True):
+            st.session_state[form_state_key] = not show_form
+            st.rerun()
 
     # Fenster anzeigen
     if wall.windows:
@@ -349,9 +362,9 @@ def render_wall_openings(room: Room, room_idx: int, wall: Wall, wall_idx: int) -
             cols = st.columns([3, 2, 1])
             with cols[0]:
                 st.write(f"• {window.name}")
-            with cols[2]:
+            with cols[1]:
                 st.write(f"U: {window.construction.u_value_w_m2k:.2f} W/m²K")
-            with cols[3]:
+            with cols[2]:
                 if st.button("🗑️", key=f"del_win_{room_idx}_{wall_idx}_{win_idx}"):
                     wall.windows.pop(win_idx)
                     st.session_state[f"room_{room_idx}_expanded"] = True
@@ -365,80 +378,93 @@ def render_wall_openings(room: Room, room_idx: int, wall: Wall, wall_idx: int) -
             cols = st.columns([3, 2, 1])
             with cols[0]:
                 st.write(f"• {door.name}")
-            with cols[2]:
+            with cols[1]:
                 st.write(f"U: {door.construction.u_value_w_m2k:.2f} W/m²K")
-            with cols[3]:
+            with cols[2]:
                 if st.button("🗑️", key=f"del_door_{room_idx}_{wall_idx}_{door_idx}"):
                     wall.doors.pop(door_idx)
                     st.session_state[f"room_{room_idx}_expanded"] = True
                     save_building(st.session_state.building)
                     st.rerun()
 
-    # Hinzufügen-Formular
-    with st.form(key=f"add_opening_form_{room_idx}_{wall_idx}"):
-        cols = st.columns([1, 2, 2, 2, 1])
+    # Info-Text wenn noch keine Öffnungen vorhanden
+    if not wall.windows and not wall.doors:
+        st.info("Keine Fenster oder Türen vorhanden.")
 
-        with cols[0]:
-            opening_type = cast(ElementType, st.selectbox(
-                "Typ",
-                options=["window", "door"],
-                format_func=lambda x: "Fenster" if x == "window" else "Tür",
-                key=f"opening_type_{room_idx}_{wall_idx}"
-            ))
+    # Hinzufügen-Formular nur anzeigen wenn aktiviert
+    if show_form:
+        with st.form(key=f"add_opening_form_{room_idx}_{wall_idx}"):
+            cols = st.columns([1, 2, 2, 2])
 
-        with cols[1]:
-            opening_name = st.text_input(
-                "Name",
-                value=f"{'Fenster' if opening_type == 'window' else 'Tür'} 1",
-                key=f"opening_name_{room_idx}_{wall_idx}"
-            )
+            with cols[0]:
+                opening_type = cast(ElementType, st.selectbox(
+                    "Typ",
+                    options=["window", "door"],
+                    format_func=lambda x: "Fenster" if x == "window" else "Tür",
+                    key=f"opening_type_{room_idx}_{wall_idx}"
+                ))
 
-        with cols[2]:
-            opening_area = st.number_input(
-                "Fläche (m²)",
-                min_value=0.1,
-                value=2.0 if opening_type == "window" else 2.5,
-                step=0.1,
-                key=f"opening_area_{room_idx}_{wall_idx}"
-            )
-
-        with cols[3]:
-            # Konstruktionen aus Katalog
-            opening_constr_type = ConstructionType.WINDOW if opening_type == "window" else ConstructionType.DOOR
-            opening_options = get_catalog_by_type(opening_constr_type)
-
-            if not opening_options:
-                st.error(f"Keine {'Fenster' if opening_type == 'window' else 'Tür'}-Konstruktionen im Katalog!")
-                add_opening = st.form_submit_button("➕ Hinzufügen", disabled=True)
-            else:
-                opening_by_name = {c.name: c for c in opening_options}
-                selected_opening_constr = st.selectbox(
-                    "Konstruktion",
-                    options=list(opening_by_name.keys()),
-                    key=f"opening_constr_{room_idx}_{wall_idx}"
+            with cols[1]:
+                opening_name = st.text_input(
+                    "Name",
+                    value="",
+                    placeholder=f"z.B. {'Fenster' if opening_type == 'window' else 'Tür'} 1",
+                    key=f"opening_name_{room_idx}_{wall_idx}"
                 )
 
-                with cols[4]:
-                    st.write("")
-                    st.write("")
-                    add_opening = st.form_submit_button("➕")
+            with cols[2]:
+                opening_area = st.number_input(
+                    "Fläche (m²)",
+                    min_value=0.1,
+                    value=2.0 if opening_type == "window" else 2.5,
+                    step=0.1,
+                    key=f"opening_area_{room_idx}_{wall_idx}"
+                )
 
-                if add_opening:
-                    element = Element(
-                        type=opening_type,
-                        name=opening_name,
-                        construction=opening_by_name[selected_opening_constr],
+            with cols[3]:
+                # Konstruktionen aus Katalog
+                opening_constr_type = ConstructionType.WINDOW if opening_type == "window" else ConstructionType.DOOR
+                opening_options = get_catalog_by_type(opening_constr_type)
+
+                if not opening_options:
+                    st.error(f"Keine {'Fenster' if opening_type == 'window' else 'Tür'}-Konstruktionen im Katalog!")
+                    opening_by_name = {}
+                    selected_opening_constr = None
+                else:
+                    opening_by_name = {c.name: c for c in opening_options}
+                    selected_opening_constr = st.selectbox(
+                        "Konstruktion",
+                        options=list(opening_by_name.keys()),
+                        key=f"opening_constr_{room_idx}_{wall_idx}"
                     )
 
-                    if opening_type == "window":
-                        wall.windows.append(element)
-                    else:
-                        wall.doors.append(element)
+            # Button rechts ausrichten
+            button_cols = st.columns([6, 1])
+            with button_cols[1]:
+                add_opening = st.form_submit_button("➕ Hinzufügen", type="primary", use_container_width=True, disabled=not opening_options)
 
-                    st.session_state[f"room_{room_idx}_expanded"] = True
-                    save_building(st.session_state.building)
-                    st.success(f"{'Fenster' if opening_type == 'window' else 'Tür'} hinzugefügt!")
-                    st.rerun()
+            if add_opening:
+                if not opening_name or opening_name.strip() == "":
+                    st.error("Bitte geben Sie einen Namen ein.")
+                    return
+
+                element = Element(
+                    type=opening_type,
+                    name=opening_name,
+                    construction=opening_by_name[selected_opening_constr],
+                )
+
+                if opening_type == "window":
+                    wall.windows.append(element)
+                else:
+                    wall.doors.append(element)
+
+                # Formular ausblenden und State zurücksetzen
+                st.session_state[form_state_key] = False
+                st.session_state[f"room_{room_idx}_expanded"] = True
+                save_building(st.session_state.building)
+                st.success(f"{'Fenster' if opening_type == 'window' else 'Tür'} '{opening_name}' hinzugefügt!")
+                st.rerun()
 
 
 def render_room_detail(room: Room, room_idx: int) -> None:
