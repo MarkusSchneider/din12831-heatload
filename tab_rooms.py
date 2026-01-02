@@ -373,11 +373,11 @@ def render_wall_openings(room: Room, room_idx: int, wall: Wall, wall_idx: int) -
     if wall.windows:
         st.write("*Fenster:*")
         for win_idx, window in enumerate(wall.windows):
-            cols = st.columns([3, 2, 1])
+            cols = st.columns([3, 3, 1])
             with cols[0]:
                 st.write(f"• {window.name}")
             with cols[1]:
-                st.write(f"U: {window.construction.u_value_w_m2k:.2f} W/m²K")
+                st.write(f"{window.width_m:.2f} × {window.height_m:.2f} m = {window.area_m2:.2f} m² | U: {window.construction.u_value_w_m2k:.2f} W/m²K")
             with cols[2]:
                 if st.button("🗑️", key=f"del_win_{room_idx}_{wall_idx}_{win_idx}"):
                     wall.windows.pop(win_idx)
@@ -389,11 +389,11 @@ def render_wall_openings(room: Room, room_idx: int, wall: Wall, wall_idx: int) -
     if wall.doors:
         st.write("*Türen:*")
         for door_idx, door in enumerate(wall.doors):
-            cols = st.columns([3, 2, 1])
+            cols = st.columns([3, 3, 1])
             with cols[0]:
                 st.write(f"• {door.name}")
             with cols[1]:
-                st.write(f"U: {door.construction.u_value_w_m2k:.2f} W/m²K")
+                st.write(f"{door.width_m:.2f} × {door.height_m:.2f} m = {door.area_m2:.2f} m² | U: {door.construction.u_value_w_m2k:.2f} W/m²K")
             with cols[2]:
                 if st.button("🗑️", key=f"del_door_{room_idx}_{wall_idx}_{door_idx}"):
                     wall.doors.pop(door_idx)
@@ -408,7 +408,7 @@ def render_wall_openings(room: Room, room_idx: int, wall: Wall, wall_idx: int) -
     # Hinzufügen-Formular nur anzeigen wenn aktiviert
     if show_form:
         with st.form(key=f"add_opening_form_{room_idx}_{wall_idx}"):
-            cols = st.columns([1, 2, 2, 2])
+            cols = st.columns([1, 2, 1.5, 1.5, 2])
 
             with cols[0]:
                 opening_type = cast(ElementType, st.selectbox(
@@ -427,35 +427,57 @@ def render_wall_openings(room: Room, room_idx: int, wall: Wall, wall_idx: int) -
                 )
 
             with cols[2]:
-                opening_area = st.number_input(
-                    "Fläche (m²)",
+                opening_width = st.number_input(
+                    "Breite (m)",
                     min_value=0.1,
-                    value=2.0 if opening_type == "window" else 2.5,
+                    value=1.2 if opening_type == "window" else 0.87,
                     step=0.1,
-                    key=f"opening_area_{room_idx}_{wall_idx}"
+                    key=f"opening_width_{room_idx}_{wall_idx}"
                 )
 
             with cols[3]:
-                # Konstruktionen aus Katalog
-                opening_constr_type = ConstructionType.WINDOW if opening_type == "window" else ConstructionType.DOOR
-                opening_options = get_catalog_by_type(opening_constr_type)
+                opening_height = st.number_input(
+                    "Höhe (m)",
+                    min_value=0.1,
+                    value=1.5 if opening_type == "window" else 2.1,
+                    step=0.1,
+                    key=f"opening_height_{room_idx}_{wall_idx}"
+                )
 
-                if not opening_options:
-                    st.error(f"Keine {'Fenster' if opening_type == 'window' else 'Tür'}-Konstruktionen im Katalog!")
-                    opening_by_name = {}
+            with cols[4]:
+                # Konstruktionen aus Katalog - zeige beide Typen mit Label
+                window_options = get_catalog_by_type(ConstructionType.WINDOW)
+                door_options = get_catalog_by_type(ConstructionType.DOOR)
+
+                # Erstelle eine kombinierte Liste mit Typ-Präfix
+                combined_options = []
+                opening_by_display_name = {}
+
+                for window in window_options:
+                    display_name = f"🪟 {window.name}"
+                    combined_options.append(display_name)
+                    opening_by_display_name[display_name] = window
+
+                for door in door_options:
+                    display_name = f"🚪 {door.name}"
+                    combined_options.append(display_name)
+                    opening_by_display_name[display_name] = door
+
+                if not combined_options:
+                    st.error("Keine Fenster- oder Tür-Konstruktionen im Katalog!")
                     selected_opening_constr = None
                 else:
-                    opening_by_name = {c.name: c for c in opening_options}
-                    selected_opening_constr = st.selectbox(
+                    selected_opening_display = st.selectbox(
                         "Konstruktion",
-                        options=list(opening_by_name.keys()),
+                        options=combined_options,
                         key=f"opening_constr_{room_idx}_{wall_idx}"
                     )
+                    selected_opening_constr = selected_opening_display
 
             # Button rechts ausrichten
             button_cols = st.columns([6, 1])
             with button_cols[1]:
-                add_opening = st.form_submit_button("➕ Hinzufügen", type="primary", use_container_width=True, disabled=not opening_options)
+                add_opening = st.form_submit_button("➕ Hinzufügen", type="primary", use_container_width=True, disabled=not combined_options)
 
             if add_opening:
                 if not opening_name or opening_name.strip() == "":
@@ -466,10 +488,23 @@ def render_wall_openings(room: Room, room_idx: int, wall: Wall, wall_idx: int) -
                     st.error("Bitte wählen Sie eine Konstruktion aus.")
                     return
 
+                # Hole die tatsächliche Konstruktion
+                construction = opening_by_display_name[selected_opening_constr]
+
+                # Validiere, dass Typ und Konstruktion zusammenpassen
+                if opening_type == "window" and construction.element_type != ConstructionType.WINDOW:
+                    st.error("Bitte wählen Sie eine Fenster-Konstruktion (🪟) für einen Fenster-Typ.")
+                    return
+                if opening_type == "door" and construction.element_type != ConstructionType.DOOR:
+                    st.error("Bitte wählen Sie eine Tür-Konstruktion (🚪) für einen Tür-Typ.")
+                    return
+
                 element = Element(
                     type=opening_type,
                     name=opening_name,
-                    construction=opening_by_name[selected_opening_constr],
+                    construction=construction,
+                    width_m=opening_width,
+                    height_m=opening_height,
                 )
 
                 if opening_type == "window":

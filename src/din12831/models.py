@@ -31,6 +31,25 @@ class Element(BaseModel):
     type: ElementType
     name: str
     construction: Construction
+    width_m: float | None = Field(default=None, gt=0, description="Breite in m")
+    height_m: float | None = Field(default=None, gt=0, description="Höhe in m")
+
+    @model_validator(mode='after')
+    def validate_dimensions(self):
+        """Validiere, dass für Fenster und Türen Breite und Höhe angegeben sind."""
+        if self.type in ["window", "door"]:
+            if self.width_m is None or self.height_m is None:
+                raise ValueError(
+                    f"{self.type} benötigt 'width_m' und 'height_m'"
+                )
+        return self
+
+    @property
+    def area_m2(self) -> float:
+        """Berechnet die Fläche aus Breite × Höhe."""
+        if self.width_m is not None and self.height_m is not None:
+            return self.width_m * self.height_m
+        return 0.0
 
 
 class Ventilation(BaseModel):
@@ -82,6 +101,24 @@ class Room(BaseModel):
     @property
     def volume_m3(self) -> float:
         return self.floor_area_m2 * self.height_m
+
+    @property
+    def elements(self) -> list[Element]:
+        """Gibt alle Bauelemente (Wände, Fenster, Türen, Boden, Decke) des Raums zurück."""
+        result: list[Element] = []
+
+        # Sammle alle Fenster und Türen aus allen Wänden
+        for wall in self.walls:
+            result.extend(wall.windows)
+            result.extend(wall.doors)
+
+        # Füge Boden und Decke hinzu, falls vorhanden
+        if self.floor is not None:
+            result.append(self.floor)
+        if self.ceiling is not None:
+            result.append(self.ceiling)
+
+        return result
 
 
 class Building(BaseModel):

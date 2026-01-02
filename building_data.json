@@ -115,7 +115,21 @@
             "thickness_m": 0.42,
             "is_external": true
           },
-          "windows": [],
+          "windows": [
+            {
+              "type": "window",
+              "name": "Fenster 1",
+              "construction": {
+                "name": "Fenster",
+                "element_type": "window",
+                "u_value_w_m2k": 1.3,
+                "thickness_m": null,
+                "is_external": null
+              },
+              "width_m": 1.8,
+              "height_m": 1.18
+            }
+          ],
           "doors": [],
           "left_wall": {
             "name": "Außenwand",
@@ -158,6 +172,47 @@
             "thickness_m": 0.115,
             "is_external": false
           }
+        },
+        {
+          "orientation": "Norden 1",
+          "length_m": 1.6,
+          "construction": {
+            "name": "Innenwand_115",
+            "element_type": "wall",
+            "u_value_w_m2k": 0.183,
+            "thickness_m": 0.115,
+            "is_external": false
+          },
+          "windows": [],
+          "doors": [
+            {
+              "type": "door",
+              "name": "Zimmertür",
+              "construction": {
+                "name": "Zimmertür",
+                "element_type": "door",
+                "u_value_w_m2k": 1.4,
+                "thickness_m": null,
+                "is_external": null
+              },
+              "width_m": 0.87,
+              "height_m": 200.0
+            }
+          ],
+          "left_wall": {
+            "name": "Innenwand_24",
+            "element_type": "wall",
+            "u_value_w_m2k": 1.6,
+            "thickness_m": 0.24,
+            "is_external": false
+          },
+          "right_wall": {
+            "name": "Innenwand_115",
+            "element_type": "wall",
+            "u_value_w_m2k": 0.183,
+            "thickness_m": 0.115,
+            "is_external": false
+          }
         }
       ],
       "floor": {
@@ -169,7 +224,9 @@
           "u_value_w_m2k": 1.0,
           "thickness_m": 20.0,
           "is_external": null
-        }
+        },
+        "width_m": null,
+        "height_m": null
       },
       "ceiling": {
         "type": "ceiling",
@@ -180,7 +237,9 @@
           "u_value_w_m2k": 1.0,
           "thickness_m": 20.0,
           "is_external": null
-        }
+        },
+        "width_m": null,
+        "height_m": null
       },
       "ventilation": {
         "air_change_1_h": 0.5
@@ -210,7 +269,9 @@
           "u_value_w_m2k": 1.0,
           "thickness_m": 0.2,
           "is_external": null
-        }
+        },
+        "width_m": null,
+        "height_m": null
       },
       "ceiling": {
         "type": "ceiling",
@@ -221,7 +282,9 @@
           "u_value_w_m2k": 1.0,
           "thickness_m": 0.2,
           "is_external": null
-        }
+        },
+        "width_m": null,
+        "height_m": null
       },
       "ventilation": {
         "air_change_1_h": 0.5
