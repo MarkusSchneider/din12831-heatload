@@ -71,8 +71,8 @@
       "name": "Arbeitszimmer",
       "areas": [
         {
-          "length_m": 4.0,
-          "width_m": 3.0
+          "length_m": 3.7,
+          "width_m": 3.7
         }
       ],
       "height_m": 2.5,
@@ -81,7 +81,7 @@
       "floor": {
         "type": "floor",
         "name": "Boden",
-        "area_m2": 12.0,
+        "area_m2": 13.690000000000001,
         "construction": {
           "name": "Boden",
           "element_type": "floor",
@@ -93,7 +93,7 @@
       "ceiling": {
         "type": "ceiling",
         "name": "Decke",
-        "area_m2": 12.0,
+        "area_m2": 13.690000000000001,
         "construction": {
           "name": "Decke",
           "element_type": "ceiling",

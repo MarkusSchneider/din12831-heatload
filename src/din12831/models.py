@@ -41,6 +41,8 @@ class Ventilation(BaseModel):
 
 
 class Area(BaseModel):
+    model_config = {"frozen": True}
+
     length_m: float = Field(gt=0)
     width_m: float = Field(gt=0)
 

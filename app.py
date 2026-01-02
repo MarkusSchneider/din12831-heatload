@@ -44,27 +44,6 @@ def _get_catalog_by_type(construction_type: ConstructionType) -> list[Constructi
     ]
 
 
-def _set_room_floor_ceiling(
-    room: Room,
-    floor_construction: Construction,
-    ceiling_construction: Construction,
-) -> None:
-    """Setzt Boden und Decke eines Raums."""
-    area = room.floor_area_m2
-    room.floor = Element(
-        type="floor",
-        name="Boden",
-        area_m2=area,
-        construction=floor_construction,
-    )
-    room.ceiling = Element(
-        type="ceiling",
-        name="Decke",
-        area_m2=area,
-        construction=ceiling_construction,
-    )
-
-
 def _sync_fixed_surface_areas(room: Room) -> None:
     """Synchronisiert Boden/Decken-Flächen mit Raumfläche."""
     area = room.floor_area_m2
@@ -85,41 +64,14 @@ def render_room_floor_ceiling_assignment(room: Room, room_idx: int) -> None:
         )
         return
 
-    floor_by_name = {c.name: c for c in floor_options}
-    ceiling_by_name = {c.name: c for c in ceiling_options}
+    current_floor = room.floor.construction.name if room.floor else "Nicht zugewiesen"
+    current_ceiling = room.ceiling.construction.name if room.ceiling else "Nicht zugewiesen"
 
-    current_floor = room.floor.construction.name if room.floor else None
-    current_ceiling = room.ceiling.construction.name if room.ceiling else None
-
-    floor_names = list(floor_by_name.keys())
-    ceiling_names = list(ceiling_by_name.keys())
-
-    col1, col2, col3 = st.columns([2, 2, 1])
+    col1, col2, _ = st.columns([2, 2, 1])
     with col1:
-        selected_floor = st.selectbox(
-            "Boden (aus Katalog)",
-            options=floor_names,
-            index=(floor_names.index(current_floor) if current_floor in floor_by_name else 0),
-            key=f"room_{room_idx}_floor_construction",
-        )
+        st.write(f"**Boden:** {current_floor}")
     with col2:
-        selected_ceiling = st.selectbox(
-            "Decke (aus Katalog)",
-            options=ceiling_names,
-            index=(ceiling_names.index(current_ceiling) if current_ceiling in ceiling_by_name else 0),
-            key=f"room_{room_idx}_ceiling_construction",
-        )
-    with col3:
-        if st.button("💾", key=f"room_{room_idx}_save_floor_ceiling"):
-            st.session_state[f"room_{room_idx}_expanded"] = True
-            _set_room_floor_ceiling(
-                room,
-                floor_construction=floor_by_name[selected_floor],
-                ceiling_construction=ceiling_by_name[selected_ceiling],
-            )
-            save_building(st.session_state.building)
-            st.success("Boden/Decke zugewiesen.")
-            st.rerun()
+        st.write(f"**Decke:** {current_ceiling}")
 
 
 # ============================================================================
@@ -305,12 +257,6 @@ def render_room_add_form() -> None:
 
                 rectangles_payload.append(Area(length_m=float(r_len), width_m=float(r_wid)))
 
-            if st.button("➕ Fläche hinzufügen", key="new_room_add_rect"):
-                next_id = (max(rect_ids) + 1) if rect_ids else 1
-                rect_ids.append(next_id)
-                st.session_state[rect_ids_key] = rect_ids
-                st.rerun()
-
         with col2:
             new_height = st.number_input(
                 "Höhe (m)", min_value=0.1, value=2.5, step=0.1, key="new_height")
@@ -419,7 +365,7 @@ def render_room_info(room: Room, room_idx: int) -> None:
             st.rerun()
 
 
-def render_room_rectangles_editor(room: Room, room_idx: int) -> None:
+def render_room_areas_editor(room: Room, room_idx: int) -> None:
     if room.areas is None:
         room.areas = []
 
@@ -433,26 +379,13 @@ def render_room_rectangles_editor(room: Room, room_idx: int) -> None:
 
     rect_ids: list[int] = st.session_state[rect_ids_key]
 
-    st.write("**Flächen (Rechtecke)**")
     for idx, rect_id in enumerate(list(rect_ids)):
         rect = room.areas[idx]
         c1, c2, c3 = st.columns([2, 2, 1])
         with c1:
-            st.number_input(
-                f"Länge (m)",
-                min_value=0.1,
-                value=float(rect.length_m),
-                step=0.1,
-                key=f"room_{room_idx}_rect_{rect_id}_len",
-            )
+            st.write(f"**Länge:** {rect.length_m} m")
         with c2:
-            st.number_input(
-                f"Breite (m)",
-                min_value=0.1,
-                value=float(rect.width_m),
-                step=0.1,
-                key=f"room_{room_idx}_rect_{rect_id}_wid",
-            )
+            st.write(f"**Breite:** {rect.width_m} m")
         with c3:
             if len(rect_ids) > 1 and st.button("🗑️", key=f"room_{room_idx}_rect_{rect_id}_del"):
                 room.areas.pop(idx)
@@ -462,18 +395,6 @@ def render_room_rectangles_editor(room: Room, room_idx: int) -> None:
                 _sync_fixed_surface_areas(room)
                 save_building(st.session_state.building)
                 st.rerun()
-
-    c_add, _ = st.columns([1, 1])
-    with c_add:
-        if st.button("➕ Fläche hinzufügen", key=f"room_{room_idx}_add_rect"):
-            room.areas.append(Area(length_m=1.0, width_m=1.0))
-            next_id = (max(rect_ids) + 1) if rect_ids else 1
-            rect_ids.append(next_id)
-            st.session_state[rect_ids_key] = rect_ids
-            st.session_state[expander_state_key] = True
-            _sync_fixed_surface_areas(room)
-            save_building(st.session_state.building)
-            st.rerun()
 
 
 def render_wall_add_form(room: Room, room_idx: int) -> None:
@@ -675,9 +596,11 @@ def render_room_detail(room: Room, room_idx: int) -> None:
     expander_state_key = f"room_{room_idx}_expanded"
     expanded = bool(st.session_state.get(expander_state_key, False))
     with st.expander(f"📐 {room.name} ({room.volume_m3:.2f} m³)", expanded=expanded):
+        st.subheader("Raum")
         render_room_info(room, room_idx)
         render_room_floor_ceiling_assignment(room, room_idx)
-        render_room_rectangles_editor(room, room_idx)
+        st.subheader("Raumflächen")
+        render_room_areas_editor(room, room_idx)
         st.subheader("Wände")
         render_wall_add_form(room, room_idx)
         render_wall_list(room, room_idx)
