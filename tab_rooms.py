@@ -202,17 +202,68 @@ def render_room_areas_editor(room: Room, room_idx: int) -> None:
             st.write(f"**Breite:** {rect.width_m} m")
 
 
-def render_wall_add_form(room: Room, room_idx: int) -> None:
-    """Zeigt Formular zum Hinzufügen einer neuen Wand."""
+def render_walls_section(room: Room, room_idx: int) -> None:
+    """Zeigt Wände-Sektion mit Button zum Hinzufügen und Liste."""
     wall_options = get_catalog_by_type(ConstructionType.WALL)
 
     if not wall_options:
+        st.subheader("Wände")
         st.warning("Im Bauteilkatalog fehlen Wand-Konstruktionen. Bitte zuerst im Katalog anlegen.")
         return
 
-    is_empty = len(room.walls) == 0
+    # Header und Button in derselben Zeile
+    form_state_key = f"show_wall_form_{room_idx}"
+    show_form = st.session_state.get(form_state_key, False)
 
-    with st.expander("➕ Neue Wand hinzufügen", expanded=is_empty):
+    header_cols = st.columns([20, 1])
+    with header_cols[0]:
+        st.subheader("Wände")
+    with header_cols[1]:
+        st.write("")
+        if st.button("➕" if not show_form else "✖️",
+                     key=f"toggle_wall_form_{room_idx}",
+                     type="secondary",
+                     use_container_width=True):
+            st.session_state[form_state_key] = not show_form
+            st.rerun()
+
+    # Liste der vorhandenen Wände
+    if room.walls:
+        st.write("**Vorhandene Wände:**")
+        for wall_idx, wall in enumerate(room.walls):
+            with st.expander(f"🧱 {wall.orientation} ({wall.length_m:.2f} m × {room.height_m:.2f} m)", expanded=False):
+                cols = st.columns([2, 2, 1])
+
+                with cols[0]:
+                    st.write(f"**Konstruktion:** {wall.construction.name}")
+                with cols[1]:
+                    st.write(f"**U-Wert:** {wall.construction.u_value_w_m2k:.2f} W/m²K")
+                with cols[2]:
+                    if st.button("🗑️", key=f"delete_wall_{room_idx}_{wall_idx}"):
+                        room.walls.pop(wall_idx)
+                        st.session_state[f"room_{room_idx}_expanded"] = True
+                        save_building(st.session_state.building)
+                        st.rerun()
+
+                # Nachbarwände (Bauteile aus Katalog) anzeigen
+                if wall.left_wall or wall.right_wall:
+                    st.write("**Angrenzende Wandbauteile:**")
+                    neighbor_cols = st.columns([2, 2, 1])
+                    with neighbor_cols[0]:
+                        if wall.left_wall:
+                            st.write(f"⬅️ **Links:** {wall.left_wall.name} (U: {wall.left_wall.u_value_w_m2k:.2f} W/m²K)")
+                    with neighbor_cols[1]:
+                        if wall.right_wall:
+                            st.write(f"➡️ **Rechts:** {wall.right_wall.name} (U: {wall.right_wall.u_value_w_m2k:.2f} W/m²K)")
+
+                # Fenster/Türen-Sektion
+                st.divider()
+                render_wall_openings(room, room_idx, wall, wall_idx)
+    else:
+        st.info("Noch keine Wände vorhanden.")
+
+    # Formular nur anzeigen wenn aktiviert
+    if show_form:
         with st.form(key=f"add_wall_form_{room_idx}"):
             cols = st.columns([2, 2, 2])
 
@@ -293,48 +344,12 @@ def render_wall_add_form(room: Room, room_idx: int) -> None:
             )
 
             room.walls.append(wall)
+            # Formular ausblenden und State zurücksetzen
+            st.session_state[form_state_key] = False
             st.session_state[f"room_{room_idx}_expanded"] = True
             save_building(st.session_state.building)
             st.success(f"Wand '{wall_orientation}' hinzugefügt!")
             st.rerun()
-
-
-def render_wall_list(room: Room, room_idx: int) -> None:
-    """Zeigt Liste aller Wände eines Raums."""
-    if not room.walls:
-        st.info("Noch keine Wände vorhanden. Fügen Sie die erste Wand hinzu.")
-        return
-
-    st.write("**Vorhandene Wände:**")
-    for wall_idx, wall in enumerate(room.walls):
-        with st.expander(f"🧱 {wall.orientation} ({wall.length_m:.2f} m × {room.height_m:.2f} m)", expanded=False):
-            cols = st.columns([2, 2, 1])
-
-            with cols[0]:
-                st.write(f"**Konstruktion:** {wall.construction.name}")
-            with cols[1]:
-                st.write(f"**U-Wert:** {wall.construction.u_value_w_m2k:.2f} W/m²K")
-            with cols[2]:
-                if st.button("🗑️", key=f"delete_wall_{room_idx}_{wall_idx}"):
-                    room.walls.pop(wall_idx)
-                    st.session_state[f"room_{room_idx}_expanded"] = True
-                    save_building(st.session_state.building)
-                    st.rerun()
-
-            # Nachbarwände (Bauteile aus Katalog) anzeigen
-            if wall.left_wall or wall.right_wall:
-                st.write("**Angrenzende Wandbauteile:**")
-                neighbor_cols = st.columns([2, 2, 1])
-                with neighbor_cols[0]:
-                    if wall.left_wall:
-                        st.write(f"⬅️ **Links:** {wall.left_wall.name} (U: {wall.left_wall.u_value_w_m2k:.2f} W/m²K)")
-                with neighbor_cols[1]:
-                    if wall.right_wall:
-                        st.write(f"➡️ **Rechts:** {wall.right_wall.name} (U: {wall.right_wall.u_value_w_m2k:.2f} W/m²K)")
-
-            # Fenster/Türen-Sektion
-            st.divider()
-            render_wall_openings(room, room_idx, wall, wall_idx)
 
 
 def render_wall_openings(room: Room, room_idx: int, wall: Wall, wall_idx: int) -> None:
@@ -479,9 +494,7 @@ def render_room_detail(room: Room, room_idx: int) -> None:
         render_room_info(room, room_idx)
         render_room_floor_ceiling_assignment(room)
         render_room_areas_editor(room, room_idx)
-        st.subheader("Wände")
-        render_wall_add_form(room, room_idx)
-        render_wall_list(room, room_idx)
+        render_walls_section(room, room_idx)
 
 
 def render_rooms_tab() -> None:
