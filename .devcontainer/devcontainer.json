@@ -1,0 +1,34 @@
+{
+  "name": "din12831-heatload (Python + Streamlit)",
+  "image": "mcr.microsoft.com/devcontainers/python:3.12",
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "lts"
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "python.defaultInterpreterPath": "/usr/local/bin/python",
+        "python.analysis.typeCheckingMode": "basic",
+        "python.testing.pytestEnabled": false
+      },
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance"
+      ]
+    }
+  },
+  "postCreateCommand": "python -m venv .venv && . .venv/bin/activate && python -m pip install --upgrade pip && pip install -r requirements.txt",
+  "remoteEnv": {
+    "VIRTUAL_ENV": "${containerWorkspaceFolder}/.venv",
+    "PATH": "${containerWorkspaceFolder}/.venv/bin:${containerEnv:PATH}"
+  },
+  "forwardPorts": [8501],
+  "portsAttributes": {
+    "8501": {
+      "label": "Streamlit",
+      "onAutoForward": "openBrowser"
+    }
+  }
+}

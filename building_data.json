@@ -1,0 +1,110 @@
+{
+  "name": "Mein Gebäude",
+  "outside_temperatur": -10.0,
+  "construction_catalog": [
+    {
+      "name": "Außenwand",
+      "element_type": "wall",
+      "u_value_w_m2k": 0.183,
+      "thickness_m": 0.42,
+      "is_external": true
+    },
+    {
+      "name": "Innenwand_115",
+      "element_type": "wall",
+      "u_value_w_m2k": 0.183,
+      "thickness_m": 0.115,
+      "is_external": false
+    },
+    {
+      "name": "Fenster",
+      "element_type": "wall",
+      "u_value_w_m2k": 1.3,
+      "thickness_m": null,
+      "is_external": null
+    },
+    {
+      "name": "Zimmertür",
+      "element_type": "wall",
+      "u_value_w_m2k": 1.4,
+      "thickness_m": null,
+      "is_external": null
+    },
+    {
+      "name": "Haustür",
+      "element_type": "door",
+      "u_value_w_m2k": 1.3,
+      "thickness_m": null,
+      "is_external": null
+    },
+    {
+      "name": "Innenwand_24",
+      "element_type": "wall",
+      "u_value_w_m2k": 1.6,
+      "thickness_m": 0.24,
+      "is_external": false
+    },
+    {
+      "name": "Decke",
+      "element_type": "ceiling",
+      "u_value_w_m2k": 1.0,
+      "thickness_m": 20.0,
+      "is_external": null
+    },
+    {
+      "name": "Boden",
+      "element_type": "floor",
+      "u_value_w_m2k": 1.0,
+      "thickness_m": 20.0,
+      "is_external": null
+    },
+    {
+      "name": "Obergeschossdecke",
+      "element_type": "ceiling",
+      "u_value_w_m2k": 0.148,
+      "thickness_m": 0.4,
+      "is_external": null
+    }
+  ],
+  "rooms": [
+    {
+      "name": "Arbeitszimmer",
+      "areas": [
+        {
+          "length_m": 4.0,
+          "width_m": 3.0
+        }
+      ],
+      "height_m": 2.5,
+      "room_temperature": 20.0,
+      "walls": [],
+      "floor": {
+        "type": "floor",
+        "name": "Boden",
+        "area_m2": 12.0,
+        "construction": {
+          "name": "Boden",
+          "element_type": "floor",
+          "u_value_w_m2k": 1.0,
+          "thickness_m": 20.0,
+          "is_external": null
+        }
+      },
+      "ceiling": {
+        "type": "ceiling",
+        "name": "Decke",
+        "area_m2": 12.0,
+        "construction": {
+          "name": "Decke",
+          "element_type": "ceiling",
+          "u_value_w_m2k": 1.0,
+          "thickness_m": 20.0,
+          "is_external": null
+        }
+      },
+      "ventilation": {
+        "air_change_1_h": 0.5
+      }
+    }
+  ]
+}
