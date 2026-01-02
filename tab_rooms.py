@@ -307,8 +307,7 @@ def render_wall_list(room: Room, room_idx: int) -> None:
 
     st.write("**Vorhandene Wände:**")
     for wall_idx, wall in enumerate(room.walls):
-        wall_area = wall.length_m * room.height_m
-        with st.expander(f"🧱 {wall.orientation} ({wall.length_m:.2f} m × {room.height_m:.2f} m = {wall_area:.2f} m²)", expanded=False):
+        with st.expander(f"🧱 {wall.orientation} ({wall.length_m:.2f} m × {room.height_m:.2f} m)", expanded=False):
             cols = st.columns([2, 2, 1])
 
             with cols[0]:
@@ -446,6 +445,10 @@ def render_wall_openings(room: Room, room_idx: int, wall: Wall, wall_idx: int) -
             if add_opening:
                 if not opening_name or opening_name.strip() == "":
                     st.error("Bitte geben Sie einen Namen ein.")
+                    return
+
+                if not selected_opening_constr:
+                    st.error("Bitte wählen Sie eine Konstruktion aus.")
                     return
 
                 element = Element(
