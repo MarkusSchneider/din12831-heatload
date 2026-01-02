@@ -38,12 +38,3 @@ def get_catalog_by_type(construction_type: ConstructionType) -> list[Constructio
         for c in st.session_state.building.construction_catalog
         if c.element_type == construction_type
     ]
-
-
-def sync_fixed_surface_areas(room: Room) -> None:
-    """Synchronisiert Boden/Decken-Flächen mit Raumfläche."""
-    area = room.floor_area_m2
-    if room.floor:
-        room.floor.area_m2 = area
-    if room.ceiling:
-        room.ceiling.area_m2 = area

@@ -3,7 +3,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 ElementType = Literal["wall", "window", "door", "ceiling", "floor"]
@@ -19,32 +19,29 @@ class ConstructionType(str, Enum):
 
 class Construction(BaseModel):
     name: str
-    element_type: ConstructionType = Field(
-        default=ConstructionType.WALL, description="Bauteiltyp")
+    element_type: ConstructionType = Field(default=ConstructionType.WALL, description="Bauteiltyp")
     u_value_w_m2k: float = Field(gt=0, description="U-Wert in W/(m²·K)")
-    thickness_m: float | None = Field(
-        default=None, gt=0, description="Dicke (nur für Wand/Decke/Boden)")
-    is_external: bool | None = Field(
-        default=None, description="Außenwand (nur für Wand)")
+    thickness_m: float | None = Field(default=None, gt=0, description="Dicke (nur für Wand/Decke/Boden)")
+    is_external: bool | None = Field(default=None, description="Außenwand (nur für Wand)")
 
 
 class Element(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     type: ElementType
     name: str
-    area_m2: float = Field(gt=0)
     construction: Construction
 
 
 class Ventilation(BaseModel):
-    air_change_1_h: float = Field(
-        default=0.5, ge=0.0, description="Luftwechsel n in 1/h")
+    air_change_1_h: float = Field(default=0.5, ge=0.0, description="Luftwechsel n in 1/h")
 
 
 class Area(BaseModel):
     model_config = {"frozen": True}
 
-    length_m: float = Field(gt=0)
-    width_m: float = Field(gt=0)
+    length_m: float = Field(ge=0)
+    width_m: float = Field(ge=0)
 
     @property
     def area_m2(self) -> float:
@@ -52,13 +49,15 @@ class Area(BaseModel):
 
 
 class Wall(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     orientation: str = Field(description="Richtung/Bezeichnung (z.B. Nord, Ost, Süd 1, West 2)")
     length_m: float = Field(gt=0, description="Wandlänge in m")
     construction: Construction = Field(description="Wandkonstruktion aus Katalog")
     windows: list[Element] = Field(default_factory=list, description="Fenster in dieser Wand")
     doors: list[Element] = Field(default_factory=list, description="Türen in dieser Wand")
-    left_wall: str | None = Field(default=None, description="Linke Nachbarwand (Orientierung/Bezeichnung)")
-    right_wall: str | None = Field(default=None, description="Rechte Nachbarwand (Orientierung/Bezeichnung)")
+    left_wall: Construction = Field(description="Linke Nachbarwand (Bauteil aus Katalog)")
+    right_wall: Construction = Field(description="Rechte Nachbarwand (Bauteil aus Katalog)")
 
 
 class Room(BaseModel):
@@ -68,8 +67,7 @@ class Room(BaseModel):
         description="Raumgrundriss als Summe mehrerer Rechtecke (jeweils Länge×Breite).",
     )
     height_m: float = Field(gt=0)
-    room_temperature: float = Field(
-        default=20.0, description="Raumtemperatur in °C")
+    room_temperature: float = Field(default=20.0, description="Raumtemperatur in °C")
     walls: list[Wall] = Field(default_factory=list, description="Wände des Raums")
     floor: Element | None = Field(default=None, description="Bodenkonstruktion")
     ceiling: Element | None = Field(default=None, description="Deckenkonstruktion")
@@ -88,8 +86,6 @@ class Room(BaseModel):
 
 class Building(BaseModel):
     name: str
-    outside_temperatur: float = Field(
-        default=-10.0, description="Normaußentemperatur in °C")
-    construction_catalog: list[Construction] = Field(
-        default_factory=list, description="Bauteilkatalog")
+    outside_temperatur: float = Field(default=-10.0, description="Normaußentemperatur in °C")
+    construction_catalog: list[Construction] = Field(default_factory=list, description="Bauteilkatalog")
     rooms: list[Room] = Field(default_factory=list)

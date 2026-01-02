@@ -3,10 +3,10 @@
 import streamlit as st
 from typing import cast
 from src.din12831.models import Room, Element, Ventilation, Area, ConstructionType, Wall, ElementType
-from utils import save_building, get_catalog_by_type, sync_fixed_surface_areas
+from utils import save_building, get_catalog_by_type
 
 
-def render_room_floor_ceiling_assignment(room: Room, room_idx: int) -> None:
+def render_room_floor_ceiling_assignment(room: Room) -> None:
     current_floor = room.floor.construction.name if room.floor else "Nicht zugewiesen"
     current_ceiling = room.ceiling.construction.name if room.ceiling else "Nicht zugewiesen"
 
@@ -30,7 +30,7 @@ def render_room_add_form() -> None:
 
         with col1:
             new_room_name = st.text_input("Raumname", key="new_room_name")
-            st.write("**Flächen (Rechtecke)**")
+            st.write("**Flächen**")
             rectangles_payload: list[Area] = []
 
             rect_ids: list[int] = st.session_state[rect_ids_key]
@@ -39,16 +39,16 @@ def render_room_add_form() -> None:
                 with c1:
                     r_len = st.number_input(
                         f"Länge (m)",
-                        min_value=0.1,
-                        value=4.0,
+                        min_value=0.0,
+                        value=0.0,
                         step=0.1,
                         key=f"new_room_rect_{rect_id}_len",
                     )
                 with c2:
                     r_wid = st.number_input(
                         f"Breite (m)",
-                        min_value=0.1,
-                        value=3.0,
+                        min_value=0.0,
+                        value=0.0,
                         step=0.1,
                         key=f"new_room_rect_{rect_id}_wid",
                     )
@@ -59,6 +59,12 @@ def render_room_add_form() -> None:
                         st.rerun()
 
                 rectangles_payload.append(Area(length_m=float(r_len), width_m=float(r_wid)))
+
+            if st.button("➕ Weitere Fläche hinzufügen", key="add_new_room_rect"):
+                max_id = max(rect_ids) if rect_ids else 0
+                rect_ids.append(max_id + 1)
+                st.session_state[rect_ids_key] = rect_ids
+                st.rerun()
 
         with col2:
             new_height = st.number_input(
@@ -97,8 +103,14 @@ def render_room_add_form() -> None:
             return
 
         if not rectangles_payload:
-            st.error("Bitte mindestens ein Rechteck angeben.")
+            st.error("Bitte mindestens eine Fläche angeben.")
             return
+
+        # Validierung: Länge und Breite müssen größer als 0 sein
+        for idx, area in enumerate(rectangles_payload, 1):
+            if area.length_m <= 0 or area.width_m <= 0:
+                st.error(f"Fläche {idx}: Länge und Breite müssen größer als 0 sein.")
+                return
 
         floor_options = get_catalog_by_type(ConstructionType.FLOOR)
         ceiling_options = get_catalog_by_type(ConstructionType.CEILING)
@@ -112,6 +124,7 @@ def render_room_add_form() -> None:
         ceiling_by_name = {c.name: c for c in ceiling_options}
         floor_selected = cast(str, st.session_state.get("new_room_floor_construction"))
         ceiling_selected = cast(str, st.session_state.get("new_room_ceiling_construction"))
+
         if floor_selected not in floor_by_name or ceiling_selected not in ceiling_by_name:
             st.error("Bitte Boden und Decke aus dem Katalog auswählen.")
             return
@@ -125,17 +138,14 @@ def render_room_add_form() -> None:
         )
 
         # Boden/Decke als direkte Felder (Fläche = Raumfläche)
-        area = new_room.floor_area_m2
         new_room.floor = Element(
             type="floor",
             name="Boden",
-            area_m2=area,
             construction=floor_by_name[floor_selected],
         )
         new_room.ceiling = Element(
             type="ceiling",
             name="Decke",
-            area_m2=area,
             construction=ceiling_by_name[ceiling_selected],
         )
         st.session_state.building.rooms.append(new_room)
@@ -185,20 +195,11 @@ def render_room_areas_editor(room: Room, room_idx: int) -> None:
     st.subheader("Flächen")
     for idx, rect_id in enumerate(list(rect_ids)):
         rect = room.areas[idx]
-        c1, c2, c3 = st.columns([2, 2, 1])
-        with c1:
+        cols = st.columns([2, 2, 1])
+        with cols[0]:
             st.write(f"**Länge:** {rect.length_m} m")
-        with c2:
+        with cols[1]:
             st.write(f"**Breite:** {rect.width_m} m")
-        with c3:
-            if len(rect_ids) > 1 and st.button("🗑️", key=f"room_{room_idx}_rect_{rect_id}_del"):
-                room.areas.pop(idx)
-                rect_ids.remove(rect_id)
-                st.session_state[rect_ids_key] = rect_ids
-                st.session_state[expander_state_key] = True
-                sync_fixed_surface_areas(room)
-                save_building(st.session_state.building)
-                st.rerun()
 
 
 def render_wall_add_form(room: Room, room_idx: int) -> None:
@@ -209,50 +210,93 @@ def render_wall_add_form(room: Room, room_idx: int) -> None:
         st.warning("Im Bauteilkatalog fehlen Wand-Konstruktionen. Bitte zuerst im Katalog anlegen.")
         return
 
-    with st.form(key=f"add_wall_form_{room_idx}"):
-        st.write("**Neue Wand hinzufügen**")
-        cols = st.columns([2, 2, 2, 1])
+    is_empty = len(room.walls) == 0
 
-        with cols[0]:
-            wall_orientation = st.text_input(
-                "Richtung / Bezeichnung",
-                value="",
-                key=f"wall_orientation_{room_idx}",
-                placeholder="z.B. Norden, Osten, Süden 1, Westen 2"
+    with st.expander("➕ Neue Wand hinzufügen", expanded=is_empty):
+        with st.form(key=f"add_wall_form_{room_idx}"):
+            cols = st.columns([2, 2, 2])
+
+            with cols[0]:
+                wall_orientation = st.text_input(
+                    "Richtung / Bezeichnung",
+                    value="",
+                    key=f"wall_orientation_{room_idx}",
+                    placeholder="z.B. Norden, Osten, Süden 1, Westen 2"
+                )
+
+            with cols[1]:
+                wall_length = st.number_input(
+                    "Länge (m)", min_value=0.1, value=4.0, step=0.1, key=f"wall_length_{room_idx}")
+
+            with cols[2]:
+                wall_by_name = {c.name: c for c in wall_options}
+                selected_wall_constr = st.selectbox(
+                    "Aufbau",
+                    options=list(wall_by_name.keys()),
+                    key=f"wall_constr_{room_idx}"
+                )
+
+            # Nachbarwände aus Katalog auswählen
+            st.write("**Angrenzende Wände**")
+            cols2 = st.columns([2, 2, 2])
+
+            # Liste der Wandbauteile aus dem Katalog mit "Keine" Option
+            wall_catalog_names = ["Keine"] + [c.name for c in wall_options]
+
+            with cols2[0]:
+                left_wall_name = st.selectbox(
+                    "Aufbau Nachbarwand Links",
+                    options=wall_catalog_names,
+                    key=f"wall_left_{room_idx}",
+                    help="Wählen Sie das Wandbauteil aus dem Katalog, das links angrenzt"
+                )
+
+            with cols2[1]:
+                right_wall_name = st.selectbox(
+                    "Aufbau Nachbarwand Rechts",
+                    options=wall_catalog_names,
+                    key=f"wall_right_{room_idx}",
+                    help="Wählen Sie das Wandbauteil aus dem Katalog, das rechts angrenzt"
+                )
+
+            # Button unten rechts ausrichten
+            button_cols = st.columns([6, 1])
+            with button_cols[1]:
+                add_wall = st.form_submit_button("➕ Hinzufügen", type="primary", use_container_width=True)
+
+            if not add_wall:
+                return
+
+            # Validierung der Pflichtfelder
+            if not wall_orientation or wall_orientation.strip() == "":
+                st.error("Bitte geben Sie eine Richtung / Bezeichnung für die Wand ein.")
+                return
+
+            if wall_length <= 0:
+                st.error("Bitte geben Sie eine gültige Wandlänge größer als 0 ein.")
+                return
+
+            if left_wall_name == "Keine":
+                st.error("Bitte wählen Sie eine Nachbarwand Links aus dem Katalog.")
+                return
+
+            if right_wall_name == "Keine":
+                st.error("Bitte wählen Sie eine Nachbarwand Rechts aus dem Katalog.")
+                return
+
+            wall = Wall(
+                orientation=wall_orientation,
+                length_m=wall_length,
+                construction=wall_by_name[selected_wall_constr],
+                left_wall=wall_by_name[left_wall_name],
+                right_wall=wall_by_name[right_wall_name],
             )
 
-        with cols[1]:
-            wall_length = st.number_input(
-                "Länge (m)", min_value=0.1, value=4.0, step=0.1, key=f"wall_length_{room_idx}")
-
-        with cols[2]:
-            wall_by_name = {c.name: c for c in wall_options}
-            selected_wall_constr = st.selectbox(
-                "Aufbau",
-                options=list(wall_by_name.keys()),
-                key=f"wall_constr_{room_idx}"
-            )
-
-        with cols[3]:
-            st.write("")  # Spacer
-            st.write("")  # Spacer
-            add_wall = st.form_submit_button(
-                "➕ Wand hinzufügen", type="primary")
-
-        if not add_wall:
-            return
-
-        wall = Wall(
-            orientation=wall_orientation,
-            length_m=wall_length,
-            construction=wall_by_name[selected_wall_constr],
-        )
-
-        room.walls.append(wall)
-        st.session_state[f"room_{room_idx}_expanded"] = True
-        save_building(st.session_state.building)
-        st.success(f"Wand '{wall_orientation}' hinzugefügt!")
-        st.rerun()
+            room.walls.append(wall)
+            st.session_state[f"room_{room_idx}_expanded"] = True
+            save_building(st.session_state.building)
+            st.success(f"Wand '{wall_orientation}' hinzugefügt!")
+            st.rerun()
 
 
 def render_wall_list(room: Room, room_idx: int) -> None:
@@ -265,22 +309,29 @@ def render_wall_list(room: Room, room_idx: int) -> None:
     for wall_idx, wall in enumerate(room.walls):
         wall_area = wall.length_m * room.height_m
         with st.expander(f"🧱 {wall.orientation} ({wall.length_m:.2f} m × {room.height_m:.2f} m = {wall_area:.2f} m²)", expanded=False):
-            cols = st.columns([2, 2, 2, 1])
+            cols = st.columns([2, 2, 1])
 
             with cols[0]:
                 st.write(f"**Konstruktion:** {wall.construction.name}")
             with cols[1]:
                 st.write(f"**U-Wert:** {wall.construction.u_value_w_m2k:.2f} W/m²K")
             with cols[2]:
-                openings_area = sum(w.area_m2 for w in wall.windows) + sum(d.area_m2 for d in wall.doors)
-                net_area = max(0.0, wall_area - openings_area)
-                st.write(f"**Nettofläche:** {net_area:.2f} m²")
-            with cols[3]:
                 if st.button("🗑️", key=f"delete_wall_{room_idx}_{wall_idx}"):
                     room.walls.pop(wall_idx)
                     st.session_state[f"room_{room_idx}_expanded"] = True
                     save_building(st.session_state.building)
                     st.rerun()
+
+            # Nachbarwände (Bauteile aus Katalog) anzeigen
+            if wall.left_wall or wall.right_wall:
+                st.write("**Angrenzende Wandbauteile:**")
+                neighbor_cols = st.columns([2, 2, 1])
+                with neighbor_cols[0]:
+                    if wall.left_wall:
+                        st.write(f"⬅️ **Links:** {wall.left_wall.name} (U: {wall.left_wall.u_value_w_m2k:.2f} W/m²K)")
+                with neighbor_cols[1]:
+                    if wall.right_wall:
+                        st.write(f"➡️ **Rechts:** {wall.right_wall.name} (U: {wall.right_wall.u_value_w_m2k:.2f} W/m²K)")
 
             # Fenster/Türen-Sektion
             st.divider()
@@ -295,11 +346,9 @@ def render_wall_openings(room: Room, room_idx: int, wall: Wall, wall_idx: int) -
     if wall.windows:
         st.write("*Fenster:*")
         for win_idx, window in enumerate(wall.windows):
-            cols = st.columns([3, 2, 2, 1])
+            cols = st.columns([3, 2, 1])
             with cols[0]:
                 st.write(f"• {window.name}")
-            with cols[1]:
-                st.write(f"{window.area_m2:.2f} m²")
             with cols[2]:
                 st.write(f"U: {window.construction.u_value_w_m2k:.2f} W/m²K")
             with cols[3]:
@@ -313,11 +362,9 @@ def render_wall_openings(room: Room, room_idx: int, wall: Wall, wall_idx: int) -
     if wall.doors:
         st.write("*Türen:*")
         for door_idx, door in enumerate(wall.doors):
-            cols = st.columns([3, 2, 2, 1])
+            cols = st.columns([3, 2, 1])
             with cols[0]:
                 st.write(f"• {door.name}")
-            with cols[1]:
-                st.write(f"{door.area_m2:.2f} m²")
             with cols[2]:
                 st.write(f"U: {door.construction.u_value_w_m2k:.2f} W/m²K")
             with cols[3]:
@@ -380,7 +427,6 @@ def render_wall_openings(room: Room, room_idx: int, wall: Wall, wall_idx: int) -
                     element = Element(
                         type=opening_type,
                         name=opening_name,
-                        area_m2=opening_area,
                         construction=opening_by_name[selected_opening_constr],
                     )
 
@@ -402,7 +448,7 @@ def render_room_detail(room: Room, room_idx: int) -> None:
     with st.expander(f"📐 {room.name} ({room.volume_m3:.2f} m³)", expanded=expanded):
         st.subheader("Raum")
         render_room_info(room, room_idx)
-        render_room_floor_ceiling_assignment(room, room_idx)
+        render_room_floor_ceiling_assignment(room)
         render_room_areas_editor(room, room_idx)
         st.subheader("Wände")
         render_wall_add_form(room, room_idx)

@@ -18,14 +18,14 @@
     },
     {
       "name": "Fenster",
-      "element_type": "wall",
+      "element_type": "window",
       "u_value_w_m2k": 1.3,
       "thickness_m": null,
       "is_external": null
     },
     {
       "name": "Zimmertür",
-      "element_type": "wall",
+      "element_type": "door",
       "u_value_w_m2k": 1.4,
       "thickness_m": null,
       "is_external": null
@@ -48,14 +48,14 @@
       "name": "Decke",
       "element_type": "ceiling",
       "u_value_w_m2k": 1.0,
-      "thickness_m": 20.0,
+      "thickness_m": 0.2,
       "is_external": null
     },
     {
       "name": "Boden",
       "element_type": "floor",
       "u_value_w_m2k": 1.0,
-      "thickness_m": 20.0,
+      "thickness_m": 0.2,
       "is_external": null
     },
     {
@@ -77,11 +77,38 @@
       ],
       "height_m": 2.5,
       "room_temperature": 20.0,
-      "walls": [],
+      "walls": [
+        {
+          "orientation": "Osten",
+          "length_m": 3.7,
+          "construction": {
+            "name": "Außenwand",
+            "element_type": "wall",
+            "u_value_w_m2k": 0.183,
+            "thickness_m": 0.42,
+            "is_external": true
+          },
+          "windows": [],
+          "doors": [],
+          "left_wall": {
+            "name": "Innenwand_115",
+            "element_type": "wall",
+            "u_value_w_m2k": 0.183,
+            "thickness_m": 0.115,
+            "is_external": false
+          },
+          "right_wall": {
+            "name": "Außenwand",
+            "element_type": "wall",
+            "u_value_w_m2k": 0.183,
+            "thickness_m": 0.42,
+            "is_external": true
+          }
+        }
+      ],
       "floor": {
         "type": "floor",
         "name": "Boden",
-        "area_m2": 13.690000000000001,
         "construction": {
           "name": "Boden",
           "element_type": "floor",
@@ -93,12 +120,52 @@
       "ceiling": {
         "type": "ceiling",
         "name": "Decke",
-        "area_m2": 13.690000000000001,
         "construction": {
           "name": "Decke",
           "element_type": "ceiling",
           "u_value_w_m2k": 1.0,
           "thickness_m": 20.0,
+          "is_external": null
+        }
+      },
+      "ventilation": {
+        "air_change_1_h": 0.5
+      }
+    },
+    {
+      "name": "Bad",
+      "areas": [
+        {
+          "length_m": 2.36,
+          "width_m": 2.17
+        },
+        {
+          "length_m": 1.03,
+          "width_m": 0.71
+        }
+      ],
+      "height_m": 2.5,
+      "room_temperature": 22.0,
+      "walls": [],
+      "floor": {
+        "type": "floor",
+        "name": "Boden",
+        "construction": {
+          "name": "Boden",
+          "element_type": "floor",
+          "u_value_w_m2k": 1.0,
+          "thickness_m": 0.2,
+          "is_external": null
+        }
+      },
+      "ceiling": {
+        "type": "ceiling",
+        "name": "Decke",
+        "construction": {
+          "name": "Decke",
+          "element_type": "ceiling",
+          "u_value_w_m2k": 1.0,
+          "thickness_m": 0.2,
           "is_external": null
         }
       },
