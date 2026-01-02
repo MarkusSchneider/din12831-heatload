@@ -57,6 +57,8 @@ class Wall(BaseModel):
     construction: Construction = Field(description="Wandkonstruktion aus Katalog")
     windows: list[Element] = Field(default_factory=list, description="Fenster in dieser Wand")
     doors: list[Element] = Field(default_factory=list, description="Türen in dieser Wand")
+    left_wall: str | None = Field(default=None, description="Linke Nachbarwand (Orientierung/Bezeichnung)")
+    right_wall: str | None = Field(default=None, description="Rechte Nachbarwand (Orientierung/Bezeichnung)")
 
 
 class Room(BaseModel):
