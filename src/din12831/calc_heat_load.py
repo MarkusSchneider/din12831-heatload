@@ -92,4 +92,4 @@ def calc_room_heat_load(room: Room, outside_temperatur: float, building: Buildin
 
 
 def calc_building_heat_load(building: Building) -> list[RoomHeatLoadResult]:
-    return [calc_room_heat_load(room, building.outside_temperatur, building) for room in building.rooms]
+    return [calc_room_heat_load(room, building.outside_temperature.value_celsius, building) for room in building.rooms]

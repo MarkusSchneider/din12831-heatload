@@ -178,36 +178,30 @@ class Building(BaseModel):
     construction_catalog: list[Construction] = Field(default_factory=list, description="Bauteilkatalog")
     rooms: list[Room] = Field(default_factory=list)
 
-    def get_temperature_by_name(self, name: str | None) -> Temperature | None:
+    def get_temperature_by_name(self, name: str | None) -> Temperature:
         """Holt eine Temperatur aus dem Katalog nach Name."""
         if name is None:
-            return None
+            raise ValueError("Temperature name cannot be None")
         for temp in self.temperature_catalog:
             if temp.name == name:
                 return temp
-        return None
+        raise ValueError(f"Temperature '{name}' not found in catalog")
 
-    def get_construction_by_name(self, name: str | None) -> Construction | None:
+    def get_construction_by_name(self, name: str | None) -> Construction:
         """Holt ein Bauteil aus dem Katalog nach Name."""
         if name is None:
-            return None
+            raise ValueError("Construction name cannot be None")
         for construction in self.construction_catalog:
             if construction.name == name:
                 return construction
-        return None
+        raise ValueError(f"Construction '{name}' not found in catalog")
 
     @property
-    def outside_temperature(self) -> Temperature | None:
+    def outside_temperature(self) -> Temperature:
         """Gibt die Normaußentemperatur aus dem Katalog zurück."""
         return self.get_temperature_by_name(self.outside_temperature_name)
 
     @property
-    def default_room_temperature(self) -> Temperature | None:
+    def default_room_temperature(self) -> Temperature:
         """Gibt die Standard-Raumtemperatur aus dem Katalog zurück."""
         return self.get_temperature_by_name(self.default_room_temperature_name)
-
-    # Für Abwärtskompatibilität - wird deprecated
-    @property
-    def outside_temperatur(self) -> float:
-        """Deprecated: Verwenden Sie outside_temperature.value_celsius"""
-        return self.outside_temperature.value_celsius if self.outside_temperature else -10.0
