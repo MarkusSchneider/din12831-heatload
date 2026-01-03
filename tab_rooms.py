@@ -199,7 +199,7 @@ def render_room_add_form() -> None:
         new_room = Room(
             name=new_room_name,
             areas=rectangles_payload,
-            height_m=new_height,
+            net_height_m=new_height,
             room_temperature_name=selected_temp_name,
             ventilation=Ventilation(air_change_1_h=new_air_change)
         )
@@ -240,7 +240,8 @@ def render_room_info(room: Room, room_idx: int) -> None:
     with col1:
         st.write(f"**Fläche:** {room.floor_area_m2:.2f} m²")
         st.write(f"**Volumen:** {room.volume_m3:.2f} m³")
-        st.write(f"**Höhe:** {room.height_m:.2f} m")
+        st.write(f"**Nettohöhe (Innenmaß):** {room.net_height_m:.2f} m")
+        st.write(f"**Bruttohöhe (Außenmaß):** {room.gross_height_m:.2f} m")
     with col2:
         # Lade Temperatur dynamisch aus Katalog
         room_temp = st.session_state.building.get_temperature_by_name(room.room_temperature_name)
@@ -308,7 +309,7 @@ def render_walls_section(room: Room, room_idx: int) -> None:
     if room.walls:
         st.write("**Vorhandene Wände:**")
         for wall_idx, wall in enumerate(room.walls):
-            with st.expander(f"🧱 {wall.orientation} ({wall.net_length_m:.2f} m × {room.height_m:.2f} m)", expanded=False):
+            with st.expander(f"🧱 {wall.orientation} ({wall.net_length_m:.2f} m × {room.net_height_m:.2f} m)", expanded=False):
                 cols = st.columns([2, 2, 1])
 
                 with cols[0]:

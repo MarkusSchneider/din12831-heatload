@@ -115,7 +115,7 @@ class Room(BaseModel):
         default=None,
         description="Raumgrundriss als Summe mehrerer Rechtecke (jeweils Länge×Breite).",
     )
-    height_m: float = Field(gt=0)
+    net_height_m: float = Field(gt=0, description="Netto-Raumhöhe (Innenraumhöhe) in m")
     room_temperature_name: str | None = Field(default=None, description="Name der Raumtemperatur aus Katalog")
     walls: list[Wall] = Field(default_factory=list, description="Wände des Raums")
     floor: Element | None = Field(default=None, description="Bodenkonstruktion")
@@ -130,8 +130,21 @@ class Room(BaseModel):
         return sum(r.area_m2 for r in self.areas)
 
     @property
+    def gross_height_m(self) -> float:
+        """Berechnet die Brutto-Raumhöhe (Außenmaß).
+
+        Bruttohöhe = Nettohöhe + Deckendicke
+        """
+        ceiling_thickness = (
+            self.ceiling.construction.thickness_m
+            if self.ceiling and self.ceiling.construction.thickness_m is not None
+            else 0.0
+        )
+        return self.net_height_m + ceiling_thickness
+
+    @property
     def volume_m3(self) -> float:
-        return self.floor_area_m2 * self.height_m
+        return self.floor_area_m2 * self.net_height_m
 
     @property
     def elements(self) -> list[Element]:

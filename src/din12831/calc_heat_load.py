@@ -28,7 +28,7 @@ def calc_transmission_heat_load(room: Room, room_temp: float, outside_temperatur
     # Berechne Transmissionsverluste für Wände (berücksichtige Innenwände)
     for wall in room.walls:
         # Berechne Wandfläche
-        wall_area_m2 = wall.net_length_m * room.height_m
+        wall_area_m2 = wall.net_length_m * room.net_height_m
 
         # Subtrahiere Fenster- und Türflächen
         for window in wall.windows:

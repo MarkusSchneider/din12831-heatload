@@ -65,7 +65,7 @@
       "name": "Decke",
       "element_type": "ceiling",
       "u_value_w_m2k": 1.0,
-      "thickness_m": 0.2
+      "thickness_m": 0.24
     },
     {
       "name": "Boden",
@@ -95,7 +95,7 @@
           "width_m": 3.7
         }
       ],
-      "height_m": 2.5,
+      "net_height_m": 2.5,
       "room_temperature_name": "Wohnraum",
       "walls": [
         {
