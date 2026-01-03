@@ -81,13 +81,32 @@ class Wall(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     orientation: str = Field(description="Richtung/Bezeichnung (z.B. Nord, Ost, Süd 1, West 2)")
-    length_m: float = Field(gt=0, description="Wandlänge in m")
+    net_length_m: float = Field(gt=0, description="Netto-Wandlänge (Innenraumlänge) in m")
     construction: Construction = Field(description="Wandkonstruktion aus Katalog")
     windows: list[Element] = Field(default_factory=list, description="Fenster in dieser Wand")
     doors: list[Element] = Field(default_factory=list, description="Türen in dieser Wand")
     left_wall: Construction = Field(description="Linke Nachbarwand (Bauteil aus Katalog)")
     right_wall: Construction = Field(description="Rechte Nachbarwand (Bauteil aus Katalog)")
     adjacent_room_temperature_name: str | None = Field(default=None, description="Name der Temperatur des angrenzenden Raums (nur für Innenwände)")
+
+    @property
+    def gross_length_m(self) -> float:
+        """
+        Berechnet die Brutto-Wandlänge (Außenmaß).
+
+        Bruttolänge = Nettolänge + linke Wanddicke + rechte Wanddicke
+        - Außenwand: volle Dicke wird addiert
+        - Innenwand: halbe Dicke wird addiert
+        """
+        left_thickness = (
+            self.left_wall.thickness_m if self.left_wall.element_type == ConstructionType.EXTERNAL_WALL else self.left_wall.thickness_m / 2.0
+        ) if self.left_wall.thickness_m is not None else 0.0
+
+        right_thickness = (
+            self.right_wall.thickness_m if self.right_wall.element_type == ConstructionType.EXTERNAL_WALL else self.right_wall.thickness_m / 2.0
+        ) if self.right_wall.thickness_m is not None else 0.0
+
+        return self.net_length_m + left_thickness + right_thickness
 
 
 class Room(BaseModel):

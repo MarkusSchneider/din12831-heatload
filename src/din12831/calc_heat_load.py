@@ -16,12 +16,9 @@ class RoomHeatLoadResult:
         return self.transmission_w + self.ventilation_w
 
 
-def calc_room_heat_load(room: Room, outside_temperatur: float, building: Building) -> RoomHeatLoadResult:
+def calc_transmission_heat_load(room: Room, room_temp: float, outside_temperatur: float, building: Building) -> float:
+    """Berechnet die Transmissionswärmeverluste eines Raums."""
     transmission_w = 0.0
-
-    # Hole Raumtemperatur dynamisch aus Katalog
-    room_temp_obj = building.get_temperature_by_name(room.room_temperature_name)
-    room_temp = room_temp_obj.value_celsius if room_temp_obj else 20.0
 
     # Berechne Transmissionsverluste für Bauelemente (Boden, Decke, Fenster, Türen)
     for element in room.elements:
@@ -31,7 +28,7 @@ def calc_room_heat_load(room: Room, outside_temperatur: float, building: Buildin
     # Berechne Transmissionsverluste für Wände (berücksichtige Innenwände)
     for wall in room.walls:
         # Berechne Wandfläche
-        wall_area_m2 = wall.length_m * room.height_m
+        wall_area_m2 = wall.net_length_m * room.height_m
 
         # Subtrahiere Fenster- und Türflächen
         for window in wall.windows:
@@ -54,10 +51,28 @@ def calc_room_heat_load(room: Room, outside_temperatur: float, building: Buildin
 
         transmission_w += wall.construction.u_value_w_m2k * wall_area_m2 * delta_temp
 
-    # Einfache Lüftungsverluste: Qv = 0.34 * n * V * ΔT
-    # 0.34 ~= rho_air * cp_air / 3600 (Wh/(m³·K) -> W)
+    return transmission_w
+
+
+def calc_ventilation_heat_load(room: Room, room_temp: float, outside_temperatur: float) -> float:
+    """Berechnet die Lüftungswärmeverluste eines Raums.
+
+    Einfache Lüftungsverluste: Qv = 0.34 * n * V * ΔT
+    0.34 ~= rho_air * cp_air / 3600 (Wh/(m³·K) -> W)
+    """
     delta_temp_ventilation = room_temp - outside_temperatur
     ventilation_w = 0.34 * room.ventilation.air_change_1_h * room.volume_m3 * delta_temp_ventilation
+    return ventilation_w
+
+
+def calc_room_heat_load(room: Room, outside_temperatur: float, building: Building) -> RoomHeatLoadResult:
+    """Berechnet die gesamte Heizlast eines Raums (Transmission + Lüftung)."""
+    # Hole Raumtemperatur dynamisch aus Katalog
+    room_temp_obj = building.get_temperature_by_name(room.room_temperature_name)
+    room_temp = room_temp_obj.value_celsius if room_temp_obj else 20.0
+
+    transmission_w = calc_transmission_heat_load(room, room_temp, outside_temperatur, building)
+    ventilation_w = calc_ventilation_heat_load(room, room_temp, outside_temperatur)
 
     return RoomHeatLoadResult(
         room_name=room.name,

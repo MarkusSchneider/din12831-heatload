@@ -308,7 +308,7 @@ def render_walls_section(room: Room, room_idx: int) -> None:
     if room.walls:
         st.write("**Vorhandene Wände:**")
         for wall_idx, wall in enumerate(room.walls):
-            with st.expander(f"🧱 {wall.orientation} ({wall.length_m:.2f} m × {room.height_m:.2f} m)", expanded=False):
+            with st.expander(f"🧱 {wall.orientation} ({wall.net_length_m:.2f} m × {room.height_m:.2f} m)", expanded=False):
                 cols = st.columns([2, 2, 1])
 
                 with cols[0]:
@@ -327,16 +327,27 @@ def render_walls_section(room: Room, room_idx: int) -> None:
                         save_building(st.session_state.building)
                         st.rerun()
 
+                # Längen-Anzeige
+                length_cols = st.columns([2, 2, 1])
+                with length_cols[0]:
+                    st.write(f"**Nettolänge (Innenmaß):** {wall.net_length_m:.2f} m")
+                with length_cols[1]:
+                    st.write(f"**Bruttolänge (Außenmaß):** {wall.gross_length_m:.2f} m")
+
                 # Nachbarwände (Bauteile aus Katalog) anzeigen
                 if wall.left_wall or wall.right_wall:
                     st.write("**Angrenzende Wandbauteile:**")
                     neighbor_cols = st.columns([2, 2, 1])
                     with neighbor_cols[0]:
                         if wall.left_wall:
-                            st.write(f"⬅️ **Links:** {wall.left_wall.name} (U: {wall.left_wall.u_value_w_m2k:.2f} W/m²K)")
+                            wall_thickness = wall.left_wall.thickness_m or 0.0
+                            wall_thickness = wall_thickness / 2 if wall.left_wall.element_type == ConstructionType.INTERNAL_WALL else wall_thickness
+                            st.write(f"⬅️ **Links:** {wall.left_wall.name} (Dicke: {wall_thickness} m)")
                     with neighbor_cols[1]:
                         if wall.right_wall:
-                            st.write(f"➡️ **Rechts:** {wall.right_wall.name} (U: {wall.right_wall.u_value_w_m2k:.2f} W/m²K)")
+                            wall_thickness = wall.right_wall.thickness_m or 0.0
+                            wall_thickness = wall_thickness / 2 if wall.right_wall.element_type == ConstructionType.INTERNAL_WALL else wall_thickness
+                            st.write(f"➡️ **Rechts:** {wall.right_wall.name} (Dicke: {wall_thickness} m)")
 
                 # Fenster/Türen-Sektion
                 st.divider()
@@ -513,7 +524,7 @@ def render_walls_section(room: Room, room_idx: int) -> None:
             else:
                 wall = Wall(
                     orientation=wall_orientation,
-                    length_m=wall_length,
+                    net_length_m=wall_length,
                     construction=wall_by_name[selected_wall_constr],
                     left_wall=wall_by_name[left_wall_name],
                     right_wall=wall_by_name[right_wall_name],

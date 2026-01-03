@@ -100,7 +100,7 @@
       "walls": [
         {
           "orientation": "Osten",
-          "length_m": 3.7,
+          "net_length_m": 3.7,
           "construction": {
             "name": "Außenwand",
             "element_type": "external_wall",
@@ -125,7 +125,7 @@
         },
         {
           "orientation": "Süden",
-          "length_m": 3.7,
+          "net_length_m": 3.7,
           "construction": {
             "name": "Außenwand",
             "element_type": "external_wall",
@@ -164,7 +164,7 @@
         },
         {
           "orientation": "Westen",
-          "length_m": 3.7,
+          "net_length_m": 3.7,
           "construction": {
             "name": "Innenwand_24",
             "element_type": "internal_wall",
@@ -189,7 +189,7 @@
         },
         {
           "orientation": "Norden 1",
-          "length_m": 1.6,
+          "net_length_m": 1.6,
           "construction": {
             "name": "Innenwand_12",
             "element_type": "internal_wall",
@@ -197,7 +197,21 @@
             "thickness_m": 0.115
           },
           "windows": [],
-          "doors": [],
+          "doors": [
+            {
+              "type": "door",
+              "name": "Zimmertür",
+              "construction": {
+                "name": "Zimmertür",
+                "element_type": "door",
+                "u_value_w_m2k": 1.4,
+                "thickness_m": null
+              },
+              "width_m": 0.87,
+              "height_m": 2.0,
+              "adjacent_temperature_name": null
+            }
+          ],
           "left_wall": {
             "name": "Innenwand_24",
             "element_type": "internal_wall",
@@ -214,7 +228,7 @@
         },
         {
           "orientation": "Norden 2",
-          "length_m": 2.1,
+          "net_length_m": 2.1,
           "construction": {
             "name": "Innenwand_12",
             "element_type": "internal_wall",
