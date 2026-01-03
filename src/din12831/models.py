@@ -176,6 +176,7 @@ class Building(BaseModel):
     outside_temperature_name: str | None = Field(default=None, description="Name der Normaußentemperatur aus Katalog")
     default_room_temperature_name: str | None = Field(default=None, description="Name der Standard-Raumtemperatur aus Katalog")
     construction_catalog: list[Construction] = Field(default_factory=list, description="Bauteilkatalog")
+    u_value_correction_factor: float = Field(default=0.05, ge=0, description="U-Wert-Korrekturfaktor (größer als 0)")
     rooms: list[Room] = Field(default_factory=list)
 
     def get_temperature_by_name(self, name: str | None) -> Temperature:

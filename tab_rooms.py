@@ -280,10 +280,6 @@ def render_room_heat_loads(room: Room, room_idx: int) -> None:
                         st.write(f"{element.delta_temp_k:.1f}")
                     with cols[4]:
                         st.write(f"**{element.transmission_w:.0f}**")
-
-                st.divider()
-                st.write(f"**Summe Transmission:** {result.transmission_w:.0f} W")
-
         st.divider()
 
     except Exception as e:
