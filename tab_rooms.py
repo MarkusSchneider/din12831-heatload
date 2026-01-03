@@ -271,7 +271,7 @@ def render_room_heat_loads(room: Room, room_idx: int) -> None:
                 for element in result.element_transmissions:
                     cols = st.columns([3, 1, 1, 1, 1.5])
                     with cols[0]:
-                        st.write(f"• {element.element_name}")
+                        st.write(f"{element.element_name}")
                     with cols[1]:
                         st.write(f"{element.area_m2:.2f}")
                     with cols[2]:
