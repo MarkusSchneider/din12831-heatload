@@ -3,6 +3,7 @@
 import streamlit as st
 from typing import cast
 from src.din12831.models import Room, Element, Ventilation, Area, ConstructionType, Wall, ElementType, Temperature
+from src.din12831.calc_heat_load import calc_room_heat_load
 from utils import save_building, get_catalog_by_type
 
 
@@ -233,8 +234,29 @@ def render_room_add_form() -> None:
         st.rerun()
 
 
+def render_room_heat_loads(room: Room, room_idx: int) -> None:
+    """Berechnet und zeigt die Heizlasten eines Raums."""
+    try:
+        result = calc_room_heat_load(room, st.session_state.building.outside_temperature.value_celsius, st.session_state.building)
+
+        st.subheader("🔥 Heizlasten")
+        heat_col1, heat_col2, heat_col3 = st.columns(3)
+
+        with heat_col1:
+            st.metric("Transmissionswärmeverlust", f"{result.transmission_w:.0f} W", help="Wärmeverlust durch Bauteile (Wände, Decke, Boden, Fenster, Türen)")
+        with heat_col2:
+            st.metric("Lüftungswärmeverlust", f"{result.ventilation_w:.0f} W", help="Wärmeverlust durch Luftwechsel")
+        with heat_col3:
+            st.metric("Gesamt-Heizlast", f"{result.total_w:.0f} W", help="Summe aus Transmissions- und Lüftungswärmeverlust")
+        st.divider()
+
+    except Exception as e:
+        st.warning(f"Heizlast konnte nicht berechnet werden: {str(e)}")
+
+
 def render_room_info(room: Room, room_idx: int) -> None:
     """Zeigt Raum-Informationen und Löschen-Button."""
+    st.subheader("Raum")
     col1, col2, col3 = st.columns([2, 2, 1])
 
     with col1:
@@ -724,7 +746,7 @@ def render_room_detail(room: Room, room_idx: int) -> None:
     expander_state_key = f"room_{room_idx}_expanded"
     expanded = bool(st.session_state.get(expander_state_key, False))
     with st.expander(f"📐 {room.name} ({room.volume_m3:.2f} m³)", expanded=expanded):
-        st.subheader("Raum")
+        render_room_heat_loads(room, room_idx)
         render_room_info(room, room_idx)
         render_room_floor_ceiling_assignment(room)
         render_room_areas_editor(room, room_idx)
