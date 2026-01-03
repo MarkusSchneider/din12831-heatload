@@ -248,6 +248,42 @@ def render_room_heat_loads(room: Room, room_idx: int) -> None:
             st.metric("Lüftungswärmeverlust", f"{result.ventilation_w:.0f} W", help="Wärmeverlust durch Luftwechsel")
         with heat_col3:
             st.metric("Gesamt-Heizlast", f"{result.total_w:.0f} W", help="Summe aus Transmissions- und Lüftungswärmeverlust")
+
+        # Details zu den einzelnen Bauteilen
+        if result.element_transmissions:
+            with st.expander("📋 Details nach Bauteilen", expanded=False):
+                st.write("**Transmissionswärmeverluste der einzelnen Bauteile:**")
+
+                # Überschriftenzeile
+                header_cols = st.columns([3, 1, 1, 1, 1.5])
+                with header_cols[0]:
+                    st.write("**Bauteil**")
+                with header_cols[1]:
+                    st.write("**Fläche [m²]**")
+                with header_cols[2]:
+                    st.write("**U-Wert [W/m²K]**")
+                with header_cols[3]:
+                    st.write("**ΔT [K]**")
+                with header_cols[4]:
+                    st.write("**Wärmeverlust [W]**")
+
+                # Erstelle eine Tabelle mit den Wärmeverlusten
+                for element in result.element_transmissions:
+                    cols = st.columns([3, 1, 1, 1, 1.5])
+                    with cols[0]:
+                        st.write(f"• {element.element_name}")
+                    with cols[1]:
+                        st.write(f"{element.area_m2:.2f}")
+                    with cols[2]:
+                        st.write(f"{element.u_value_w_m2k:.2f}")
+                    with cols[3]:
+                        st.write(f"{element.delta_temp_k:.1f}")
+                    with cols[4]:
+                        st.write(f"**{element.transmission_w:.0f}**")
+
+                st.divider()
+                st.write(f"**Summe Transmission:** {result.transmission_w:.0f} W")
+
         st.divider()
 
     except Exception as e:

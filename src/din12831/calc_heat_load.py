@@ -9,6 +9,9 @@ from .models import Building, Room, ConstructionType
 class ElementHeatLoad:
     """Wärmeverlust eines einzelnen Bauteils."""
     element_name: str
+    u_value_w_m2k: float
+    area_m2: float
+    delta_temp_k: float
     transmission_w: float
 
 
@@ -41,7 +44,7 @@ def calc_element_transmission(building: Building, element_name: str, constructio
         deduction_area_m2: Abzugsfläche für Fenster und Türen in m² (Standard: 0.0)
 
     Returns:
-        ElementHeatLoad mit Name und Transmissionswärmeverlust in W
+        ElementHeatLoad mit Name, U-Wert, Fläche, Temperaturdifferenz und Transmissionswärmeverlust in W
     """
     construction = building.get_construction_by_name(construction_name)
     net_area_m2 = area_m2 - deduction_area_m2
@@ -49,6 +52,9 @@ def calc_element_transmission(building: Building, element_name: str, constructio
 
     return ElementHeatLoad(
         element_name=element_name,
+        u_value_w_m2k=construction.u_value_w_m2k,
+        area_m2=net_area_m2,
+        delta_temp_k=delta_temp,
         transmission_w=transmission_w
     )
 
