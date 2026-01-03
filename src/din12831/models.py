@@ -91,6 +91,7 @@ class Room(BaseModel):
     floor: Element | None = Field(default=None, description="Bodenkonstruktion")
     ceiling: Element | None = Field(default=None, description="Deckenkonstruktion")
     ventilation: Ventilation = Field(default_factory=Ventilation)
+    floor_plan_image: str | None = Field(default=None, description="Base64-kodiertes Grundrissbild")
 
     @property
     def floor_area_m2(self) -> float:
