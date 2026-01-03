@@ -255,7 +255,7 @@ def render_room_heat_loads(room: Room, room_idx: int) -> None:
                 st.write("**Transmissionswärmeverluste der einzelnen Bauteile:**")
 
                 # Überschriftenzeile
-                header_cols = st.columns([3, 1, 1, 1, 1.5])
+                header_cols = st.columns([3, 1, 1, 1, 1, 1.5])
                 with header_cols[0]:
                     st.write("**Bauteil**")
                 with header_cols[1]:
@@ -263,13 +263,15 @@ def render_room_heat_loads(room: Room, room_idx: int) -> None:
                 with header_cols[2]:
                     st.write("**U-Wert [W/m²K]**")
                 with header_cols[3]:
-                    st.write("**ΔT [K]**")
+                    st.write("**korr. U-Wert [W/m²K]**")
                 with header_cols[4]:
+                    st.write("**ΔT [K]**")
+                with header_cols[5]:
                     st.write("**Wärmeverlust [W]**")
 
                 # Erstelle eine Tabelle mit den Wärmeverlusten
                 for element in result.element_transmissions:
-                    cols = st.columns([3, 1, 1, 1, 1.5])
+                    cols = st.columns([3, 1, 1, 1, 1, 1.5])
                     with cols[0]:
                         st.write(f"{element.element_name}")
                     with cols[1]:
@@ -277,8 +279,10 @@ def render_room_heat_loads(room: Room, room_idx: int) -> None:
                     with cols[2]:
                         st.write(f"{element.u_value_w_m2k:.2f}")
                     with cols[3]:
-                        st.write(f"{element.delta_temp_k:.1f}")
+                        st.write(f"{element.u_value_corrected_w_m2k:.2f}")
                     with cols[4]:
+                        st.write(f"{element.delta_temp_k:.1f}")
+                    with cols[5]:
                         st.write(f"**{element.transmission_w:.0f}**")
         st.divider()
 

@@ -10,6 +10,7 @@ class ElementHeatLoad:
     """Wärmeverlust eines einzelnen Bauteils."""
     element_name: str
     u_value_w_m2k: float
+    u_value_corrected_w_m2k: float
     area_m2: float
     delta_temp_k: float
     transmission_w: float
@@ -47,12 +48,15 @@ def calc_element_transmission(building: Building, element_name: str, constructio
         ElementHeatLoad mit Name, U-Wert, Fläche, Temperaturdifferenz und Transmissionswärmeverlust in W
     """
     construction = building.get_construction_by_name(construction_name)
+    u_value_w_m2k = construction.u_value_w_m2k
+    u_value_corrected_w_m2k = u_value_w_m2k + building.u_value_correction_factor
     net_area_m2 = area_m2 - deduction_area_m2
-    transmission_w = construction.u_value_w_m2k * net_area_m2 * delta_temp
+    transmission_w = u_value_corrected_w_m2k * net_area_m2 * delta_temp
 
     return ElementHeatLoad(
         element_name=element_name,
-        u_value_w_m2k=construction.u_value_w_m2k,
+        u_value_w_m2k=u_value_w_m2k,
+        u_value_corrected_w_m2k=u_value_corrected_w_m2k,
         area_m2=net_area_m2,
         delta_temp_k=delta_temp,
         transmission_w=transmission_w

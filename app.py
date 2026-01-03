@@ -21,10 +21,20 @@ def render_sidebar() -> None:
     with st.sidebar:
         st.header("Gebäude-Einstellungen")
 
-        building_name = st.text_input(
-            "Gebäudename", value=st.session_state.building.name)
+        building_name = st.text_input("Gebäudename", value=st.session_state.building.name)
 
         st.session_state.building.name = building_name
+
+        u_value_correction = st.number_input(
+            "U-Wert-Korrekturfaktor",
+            min_value=0.001,
+            value=st.session_state.building.u_value_correction_factor,
+            step=0.01,
+            format="%.3f",
+            help="Korrekturfaktor für U-Werte (Standard: 0.05)"
+        )
+
+        st.session_state.building.u_value_correction_factor = u_value_correction
 
         st.divider()
         st.subheader("Gebäudeübersicht")
