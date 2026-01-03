@@ -3,7 +3,7 @@
   "temperature_catalog": [
     {
       "name": "Außen",
-      "value_celsius": -9.5
+      "value_celsius": -9.0
     },
     {
       "name": "Bad",

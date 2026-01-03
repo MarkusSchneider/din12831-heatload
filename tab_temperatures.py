@@ -103,6 +103,7 @@ def render_temperature_list() -> None:
             if new_value != temperature.value_celsius:
                 temperature.value_celsius = new_value
                 save_building(st.session_state.building)
+                st.rerun()
 
         with cols[2]:
             # Zeige Verwendung an
