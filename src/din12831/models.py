@@ -10,7 +10,8 @@ ElementType = Literal["wall", "window", "door", "ceiling", "floor"]
 
 
 class ConstructionType(str, Enum):
-    WALL = "wall"
+    EXTERNAL_WALL = "external_wall"
+    INTERNAL_WALL = "internal_wall"
     CEILING = "ceiling"
     FLOOR = "floor"
     WINDOW = "window"
@@ -19,10 +20,18 @@ class ConstructionType(str, Enum):
 
 class Construction(BaseModel):
     name: str
-    element_type: ConstructionType = Field(default=ConstructionType.WALL, description="Bauteiltyp")
+    element_type: ConstructionType = Field(default=ConstructionType.EXTERNAL_WALL, description="Bauteiltyp")
     u_value_w_m2k: float = Field(gt=0, description="U-Wert in W/(m²·K)")
     thickness_m: float | None = Field(default=None, gt=0, description="Dicke (nur für Wand/Decke/Boden)")
-    is_external: bool | None = Field(default=None, description="Außenwand (nur für Wand)")
+
+
+class Temperature(BaseModel):
+    """Temperatur-Referenzobjekt für wiederverwendbare Temperaturen."""
+    name: str = Field(description="Bezeichnung der Temperatur (z.B. 'Wohnraum', 'Außen', 'Keller')")
+    value_celsius: float = Field(description="Temperaturwert in °C")
+
+    def __str__(self) -> str:
+        return f"{self.name} ({self.value_celsius:.1f} °C)"
 
 
 class Element(BaseModel):
@@ -33,6 +42,7 @@ class Element(BaseModel):
     construction: Construction
     width_m: float | None = Field(default=None, gt=0, description="Breite in m")
     height_m: float | None = Field(default=None, gt=0, description="Höhe in m")
+    adjacent_temperature_name: str | None = Field(default=None, description="Name der Temperatur des angrenzenden Raums/Bereichs (z.B. für Boden/Decke)")
 
     @model_validator(mode='after')
     def validate_dimensions(self):
@@ -77,6 +87,7 @@ class Wall(BaseModel):
     doors: list[Element] = Field(default_factory=list, description="Türen in dieser Wand")
     left_wall: Construction = Field(description="Linke Nachbarwand (Bauteil aus Katalog)")
     right_wall: Construction = Field(description="Rechte Nachbarwand (Bauteil aus Katalog)")
+    adjacent_room_temperature_name: str | None = Field(default=None, description="Name der Temperatur des angrenzenden Raums (nur für Innenwände)")
 
 
 class Room(BaseModel):
@@ -86,7 +97,7 @@ class Room(BaseModel):
         description="Raumgrundriss als Summe mehrerer Rechtecke (jeweils Länge×Breite).",
     )
     height_m: float = Field(gt=0)
-    room_temperature: float = Field(default=20.0, description="Raumtemperatur in °C")
+    room_temperature_name: str | None = Field(default=None, description="Name der Raumtemperatur aus Katalog")
     walls: list[Wall] = Field(default_factory=list, description="Wände des Raums")
     floor: Element | None = Field(default=None, description="Bodenkonstruktion")
     ceiling: Element | None = Field(default=None, description="Deckenkonstruktion")
@@ -124,6 +135,27 @@ class Room(BaseModel):
 
 class Building(BaseModel):
     name: str
-    outside_temperatur: float = Field(default=-10.0, description="Normaußentemperatur in °C")
+    temperature_catalog: list[Temperature] = Field(default_factory=list, description="Temperaturkatalog")
+    outside_temperature_name: str | None = Field(default=None, description="Name der Normaußentemperatur aus Katalog")
     construction_catalog: list[Construction] = Field(default_factory=list, description="Bauteilkatalog")
     rooms: list[Room] = Field(default_factory=list)
+
+    def get_temperature_by_name(self, name: str | None) -> Temperature | None:
+        """Holt eine Temperatur aus dem Katalog nach Name."""
+        if name is None:
+            return None
+        for temp in self.temperature_catalog:
+            if temp.name == name:
+                return temp
+        return None
+
+    @property
+    def outside_temperature(self) -> Temperature | None:
+        """Gibt die Normaußentemperatur aus dem Katalog zurück."""
+        return self.get_temperature_by_name(self.outside_temperature_name)
+
+    # Für Abwärtskompatibilität - wird deprecated
+    @property
+    def outside_temperatur(self) -> float:
+        """Deprecated: Verwenden Sie outside_temperature.value_celsius"""
+        return self.outside_temperature.value_celsius if self.outside_temperature else -10.0

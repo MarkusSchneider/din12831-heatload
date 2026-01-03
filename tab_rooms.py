@@ -2,7 +2,7 @@
 
 import streamlit as st
 from typing import cast
-from src.din12831.models import Room, Element, Ventilation, Area, ConstructionType, Wall, ElementType
+from src.din12831.models import Room, Element, Ventilation, Area, ConstructionType, Wall, ElementType, Temperature
 from utils import save_building, get_catalog_by_type
 
 
@@ -12,9 +12,18 @@ def render_room_floor_ceiling_assignment(room: Room) -> None:
 
     col1, col2, _ = st.columns([2, 2, 1])
     with col1:
-        st.write(f"**Boden:** {current_floor}")
+        adj_temp_str = ""
+        if room.floor and room.floor.adjacent_temperature_name:
+            adj_temp = st.session_state.building.get_temperature_by_name(room.floor.adjacent_temperature_name)
+            if adj_temp:
+                adj_temp_str = f"*Angrenzende Temperatur:* {adj_temp.name} ({adj_temp.value_celsius:.1f} °C)"
+        st.write(f"**Boden:** {current_floor} - {adj_temp_str}")
     with col2:
-        st.write(f"**Decke:** {current_ceiling}")
+        if room.ceiling and room.ceiling.adjacent_temperature_name:
+            adj_temp = st.session_state.building.get_temperature_by_name(room.ceiling.adjacent_temperature_name)
+            if adj_temp:
+                adj_temp_str = f"*Angrenzende Temperatur:* {adj_temp.name} ({adj_temp.value_celsius:.1f} °C)"
+        st.write(f"**Decke:** {current_ceiling} - {adj_temp_str}")
 
 
 def render_room_add_form() -> None:
@@ -69,31 +78,74 @@ def render_room_add_form() -> None:
         with col2:
             new_height = st.number_input(
                 "Höhe (m)", min_value=0.1, value=2.5, step=0.1, key="new_height")
-            new_temp = st.number_input(
-                "Raumtemperatur (°C)", min_value=15.0, max_value=25.0, value=20.0, step=0.5, key="new_temp")
+
+            # Raumtemperatur aus Katalog auswählen
+            temp_catalog = st.session_state.building.temperature_catalog
+            if temp_catalog:
+                temp_by_name = {t.name: t for t in temp_catalog}
+                selected_temp_name = st.selectbox(
+                    "Raumtemperatur",
+                    options=list(temp_by_name.keys()),
+                    format_func=lambda name: f"{name} ({temp_by_name[name].value_celsius:.1f} °C)",
+                    key="new_temp"
+                )
+            else:
+                st.error("Bitte zuerst Temperaturen im Temperaturkatalog anlegen.")
+                selected_temp_name = None
+
             new_air_change = st.number_input(
                 "Luftwechsel (1/h)", min_value=0.0, value=0.5, step=0.1, key="new_air_change")
 
             floor_options = get_catalog_by_type(ConstructionType.FLOOR)
             ceiling_options = get_catalog_by_type(ConstructionType.CEILING)
 
-            if floor_options:
-                st.selectbox(
-                    "Boden (aus Katalog)",
-                    options=[c.name for c in floor_options],
-                    key="new_room_floor_construction",
-                )
-            else:
-                st.error("Im Bauteilkatalog fehlt mindestens eine Boden-Konstruktion.")
+            # Boden-Sektion
+            st.write("**Boden:**")
+            col_floor_1, col_floor_2 = st.columns(2)
+            with col_floor_1:
+                if floor_options:
+                    st.selectbox(
+                        "Konstruktion",
+                        options=[c.name for c in floor_options],
+                        key="new_room_floor_construction",
+                    )
+                else:
+                    st.error("Im Bauteilkatalog fehlt mindestens eine Boden-Konstruktion.")
 
-            if ceiling_options:
-                st.selectbox(
-                    "Decke (aus Katalog)",
-                    options=[c.name for c in ceiling_options],
-                    key="new_room_ceiling_construction",
-                )
-            else:
-                st.error("Im Bauteilkatalog fehlt mindestens eine Decken-Konstruktion.")
+            with col_floor_2:
+                if temp_catalog:
+                    temp_by_name = {t.name: t for t in temp_catalog}
+                    st.selectbox(
+                        "Angrenzende Temperatur",
+                        options=list(temp_by_name.keys()),
+                        format_func=lambda name: f"{name} ({temp_by_name[name].value_celsius:.1f} °C)",
+                        key="new_floor_adjacent_temp",
+                        help="Temperatur des Raums/Bereichs unterhalb des Bodens"
+                    )
+
+            # Decken-Sektion
+            st.write("**Decke:**")
+            col_ceiling_1, col_ceiling_2 = st.columns(2)
+            with col_ceiling_1:
+                if ceiling_options:
+                    st.selectbox(
+                        "Konstruktion",
+                        options=[c.name for c in ceiling_options],
+                        key="new_room_ceiling_construction",
+                    )
+                else:
+                    st.error("Im Bauteilkatalog fehlt mindestens eine Decken-Konstruktion.")
+
+            with col_ceiling_2:
+                if temp_catalog:
+                    temp_by_name = {t.name: t for t in temp_catalog}
+                    st.selectbox(
+                        "Angrenzende Temperatur",
+                        options=list(temp_by_name.keys()),
+                        format_func=lambda name: f"{name} ({temp_by_name[name].value_celsius:.1f} °C)",
+                        key="new_ceiling_adjacent_temp",
+                        help="Temperatur des Raums/Bereichs oberhalb der Decke"
+                    )
 
         if not st.button("Raum hinzufügen", type="primary"):
             return
@@ -111,6 +163,11 @@ def render_room_add_form() -> None:
             if area.length_m <= 0 or area.width_m <= 0:
                 st.error(f"Fläche {idx}: Länge und Breite müssen größer als 0 sein.")
                 return
+
+        # Validierung: Temperatur ausgewählt
+        if not selected_temp_name:
+            st.error("Bitte wählen Sie eine Raumtemperatur aus dem Katalog.")
+            return
 
         floor_options = get_catalog_by_type(ConstructionType.FLOOR)
         ceiling_options = get_catalog_by_type(ConstructionType.CEILING)
@@ -133,20 +190,25 @@ def render_room_add_form() -> None:
             name=new_room_name,
             areas=rectangles_payload,
             height_m=new_height,
-            room_temperature=new_temp,
+            room_temperature_name=selected_temp_name,
             ventilation=Ventilation(air_change_1_h=new_air_change)
         )
 
         # Boden/Decke als direkte Felder (Fläche = Raumfläche)
+        floor_adjacent_temp = cast(str, st.session_state.get("new_floor_adjacent_temp"))
+        ceiling_adjacent_temp = cast(str, st.session_state.get("new_ceiling_adjacent_temp"))
+
         new_room.floor = Element(
             type="floor",
             name="Boden",
             construction=floor_by_name[floor_selected],
+            adjacent_temperature_name=floor_adjacent_temp,
         )
         new_room.ceiling = Element(
             type="ceiling",
             name="Decke",
             construction=ceiling_by_name[ceiling_selected],
+            adjacent_temperature_name=ceiling_adjacent_temp,
         )
         st.session_state.building.rooms.append(new_room)
 
@@ -169,7 +231,10 @@ def render_room_info(room: Room, room_idx: int) -> None:
         st.write(f"**Fläche:** {room.floor_area_m2:.2f} m²")
         st.write(f"**Volumen:** {room.volume_m3:.2f} m³")
     with col2:
-        st.write(f"**Raumtemperatur:** {room.room_temperature}°C")
+        # Lade Temperatur dynamisch aus Katalog
+        room_temp = st.session_state.building.get_temperature_by_name(room.room_temperature_name)
+        room_temp_text = f"{room_temp.name} ({room_temp.value_celsius:.1f}°C)" if room_temp else "Nicht zugewiesen"
+        st.write(f"**Raumtemperatur:** {room_temp_text}")
         st.write(f"**Luftwechsel:** {room.ventilation.air_change_1_h} 1/h")
     with col3:
         if st.button("🗑️ Löschen", key=f"delete_room_{room_idx}"):
@@ -204,7 +269,10 @@ def render_room_areas_editor(room: Room, room_idx: int) -> None:
 
 def render_walls_section(room: Room, room_idx: int) -> None:
     """Zeigt Wände-Sektion mit Button zum Hinzufügen und Liste."""
-    wall_options = get_catalog_by_type(ConstructionType.WALL)
+    # Hole beide Wandtypen aus dem Katalog
+    external_walls = get_catalog_by_type(ConstructionType.EXTERNAL_WALL)
+    internal_walls = get_catalog_by_type(ConstructionType.INTERNAL_WALL)
+    wall_options = external_walls + internal_walls
 
     if not wall_options:
         st.subheader("Wände")
@@ -236,6 +304,11 @@ def render_walls_section(room: Room, room_idx: int) -> None:
 
                 with cols[0]:
                     st.write(f"**Konstruktion:** {wall.construction.name}")
+                    # Zeige Temperatur bei Innenwänden - lade dynamisch aus Katalog
+                    if wall.construction.element_type == ConstructionType.INTERNAL_WALL and wall.adjacent_room_temperature_name is not None:
+                        adj_temp = st.session_state.building.get_temperature_by_name(wall.adjacent_room_temperature_name)
+                        if adj_temp:
+                            st.write(f"**Angrenzender Raum:** {adj_temp.name} ({adj_temp.value_celsius:.1f} °C)")
                 with cols[1]:
                     st.write(f"**U-Wert:** {wall.construction.u_value_w_m2k:.2f} W/m²K")
                 with cols[2]:
@@ -268,7 +341,21 @@ def render_walls_section(room: Room, room_idx: int) -> None:
         with st.container(border=True):
             # Restliche Eingaben
             st.write("**Aufbau:**")
-            cols = st.columns([2,  2])
+
+            # Bestimme zuerst die ausgewählte Konstruktion
+            wall_by_name = {c.name: c for c in wall_options}
+
+            # Prüfe ob eine Innenwand ausgewählt wurde für dynamische Spaltenanzahl
+            selected_constr_name = st.session_state.get(f"wall_constr_{room_idx}")
+            is_internal_wall = False
+            if selected_constr_name and selected_constr_name in wall_by_name:
+                is_internal_wall = wall_by_name[selected_constr_name].element_type == ConstructionType.INTERNAL_WALL
+
+            # Spalten abhängig von Wandtyp
+            if is_internal_wall:
+                cols = st.columns([2, 2, 2])
+            else:
+                cols = st.columns([2, 2])
 
             with cols[0]:
                 wall_orientation = st.text_input(
@@ -279,12 +366,30 @@ def render_walls_section(room: Room, room_idx: int) -> None:
                 )
 
             with cols[1]:
-                wall_by_name = {c.name: c for c in wall_options}
                 selected_wall_constr = st.selectbox(
                     "Aufbau",
                     options=list(wall_by_name.keys()),
                     key=f"wall_constr_{room_idx}"
                 )
+
+            # Temperatur des angrenzenden Raums (nur bei Innenwand) - neben Aufbau
+            adjacent_temp_name = None
+            selected_construction = wall_by_name[selected_wall_constr]
+            if selected_construction.element_type == ConstructionType.INTERNAL_WALL:
+                with cols[2]:
+                    temp_catalog = st.session_state.building.temperature_catalog
+                    if temp_catalog:
+                        temp_by_name = {t.name: t for t in temp_catalog}
+                        selected_adj_temp_name = st.selectbox(
+                            "Temperatur des angrenzenden Raums",
+                            options=list(temp_by_name.keys()),
+                            format_func=lambda name: f"{name} ({temp_by_name[name].value_celsius:.1f} °C)",
+                            key=f"adjacent_temp_{room_idx}",
+                            help="Wählen Sie die Temperatur des Raums, der an diese Innenwand angrenzt"
+                        )
+                        adjacent_temp_name = selected_adj_temp_name
+                    else:
+                        st.error("Keine Temperaturen im Katalog")
 
             # Berechne die Gesamtlänge aus den Dropdowns
             st.write("**Wandlänge:**")
@@ -388,6 +493,8 @@ def render_walls_section(room: Room, room_idx: int) -> None:
                 st.error("Bitte wählen Sie eine Nachbarwand Links aus dem Katalog.")
             elif right_wall_name == "Keine":
                 st.error("Bitte wählen Sie eine Nachbarwand Rechts aus dem Katalog.")
+            elif selected_construction.element_type == ConstructionType.INTERNAL_WALL and adjacent_temp_name is None:
+                st.error("Bitte geben Sie die Temperatur des angrenzenden Raums für die Innenwand ein.")
             else:
                 wall = Wall(
                     orientation=wall_orientation,
@@ -395,6 +502,7 @@ def render_walls_section(room: Room, room_idx: int) -> None:
                     construction=wall_by_name[selected_wall_constr],
                     left_wall=wall_by_name[left_wall_name],
                     right_wall=wall_by_name[right_wall_name],
+                    adjacent_room_temperature_name=adjacent_temp_name,
                 )
 
                 room.walls.append(wall)

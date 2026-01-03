@@ -1,69 +1,82 @@
 {
   "name": "Mein Gebäude",
-  "outside_temperatur": -10.0,
+  "temperature_catalog": [
+    {
+      "name": "Außen",
+      "value_celsius": -9.5
+    },
+    {
+      "name": "Bad",
+      "value_celsius": 24.0
+    },
+    {
+      "name": "Wohnraum",
+      "value_celsius": 20.0
+    },
+    {
+      "name": "Keller",
+      "value_celsius": 15.0
+    },
+    {
+      "name": "Unbeheizt",
+      "value_celsius": 15.0
+    }
+  ],
+  "outside_temperature_name": "Außen",
   "construction_catalog": [
     {
       "name": "Außenwand",
-      "element_type": "wall",
+      "element_type": "external_wall",
       "u_value_w_m2k": 0.183,
-      "thickness_m": 0.42,
-      "is_external": true
+      "thickness_m": 0.42
     },
     {
       "name": "Innenwand_115",
-      "element_type": "wall",
+      "element_type": "internal_wall",
       "u_value_w_m2k": 0.183,
-      "thickness_m": 0.115,
-      "is_external": false
+      "thickness_m": 0.115
     },
     {
       "name": "Fenster",
       "element_type": "window",
       "u_value_w_m2k": 1.3,
-      "thickness_m": null,
-      "is_external": null
+      "thickness_m": null
     },
     {
       "name": "Zimmertür",
       "element_type": "door",
       "u_value_w_m2k": 1.4,
-      "thickness_m": null,
-      "is_external": null
+      "thickness_m": null
     },
     {
       "name": "Haustür",
       "element_type": "door",
       "u_value_w_m2k": 1.3,
-      "thickness_m": null,
-      "is_external": null
+      "thickness_m": null
     },
     {
       "name": "Innenwand_24",
-      "element_type": "wall",
+      "element_type": "internal_wall",
       "u_value_w_m2k": 1.6,
-      "thickness_m": 0.24,
-      "is_external": false
+      "thickness_m": 0.24
     },
     {
       "name": "Decke",
       "element_type": "ceiling",
       "u_value_w_m2k": 1.0,
-      "thickness_m": 0.2,
-      "is_external": null
+      "thickness_m": 0.2
     },
     {
       "name": "Boden",
       "element_type": "floor",
       "u_value_w_m2k": 1.0,
-      "thickness_m": 0.2,
-      "is_external": null
+      "thickness_m": 0.2
     },
     {
       "name": "Obergeschossdecke",
       "element_type": "ceiling",
       "u_value_w_m2k": 0.148,
-      "thickness_m": 0.4,
-      "is_external": null
+      "thickness_m": 0.4
     }
   ],
   "rooms": [
@@ -76,44 +89,41 @@
         }
       ],
       "height_m": 2.5,
-      "room_temperature": 20.0,
+      "room_temperature_name": "Wohnraum",
       "walls": [
         {
           "orientation": "Osten",
           "length_m": 3.7,
           "construction": {
             "name": "Außenwand",
-            "element_type": "wall",
+            "element_type": "external_wall",
             "u_value_w_m2k": 0.183,
-            "thickness_m": 0.42,
-            "is_external": true
+            "thickness_m": 0.42
           },
           "windows": [],
           "doors": [],
           "left_wall": {
             "name": "Innenwand_115",
-            "element_type": "wall",
+            "element_type": "internal_wall",
             "u_value_w_m2k": 0.183,
-            "thickness_m": 0.115,
-            "is_external": false
+            "thickness_m": 0.115
           },
           "right_wall": {
             "name": "Außenwand",
-            "element_type": "wall",
+            "element_type": "external_wall",
             "u_value_w_m2k": 0.183,
-            "thickness_m": 0.42,
-            "is_external": true
-          }
+            "thickness_m": 0.42
+          },
+          "adjacent_room_temperature_name": null
         },
         {
           "orientation": "Süden",
           "length_m": 3.7,
           "construction": {
             "name": "Außenwand",
-            "element_type": "wall",
+            "element_type": "external_wall",
             "u_value_w_m2k": 0.183,
-            "thickness_m": 0.42,
-            "is_external": true
+            "thickness_m": 0.42
           },
           "windows": [
             {
@@ -123,65 +133,61 @@
                 "name": "Fenster",
                 "element_type": "window",
                 "u_value_w_m2k": 1.3,
-                "thickness_m": null,
-                "is_external": null
+                "thickness_m": null
               },
               "width_m": 1.8,
-              "height_m": 1.18
+              "height_m": 1.18,
+              "adjacent_temperature_name": null
             }
           ],
           "doors": [],
           "left_wall": {
             "name": "Außenwand",
-            "element_type": "wall",
+            "element_type": "external_wall",
             "u_value_w_m2k": 0.183,
-            "thickness_m": 0.42,
-            "is_external": true
+            "thickness_m": 0.42
           },
           "right_wall": {
             "name": "Innenwand_24",
-            "element_type": "wall",
+            "element_type": "internal_wall",
             "u_value_w_m2k": 1.6,
-            "thickness_m": 0.24,
-            "is_external": false
-          }
+            "thickness_m": 0.24
+          },
+          "adjacent_room_temperature_name": null
         },
         {
           "orientation": "Westen",
           "length_m": 3.7,
           "construction": {
             "name": "Innenwand_24",
-            "element_type": "wall",
+            "element_type": "internal_wall",
             "u_value_w_m2k": 1.6,
-            "thickness_m": 0.24,
-            "is_external": false
+            "thickness_m": 0.24
           },
           "windows": [],
           "doors": [],
           "left_wall": {
             "name": "Außenwand",
-            "element_type": "wall",
+            "element_type": "external_wall",
             "u_value_w_m2k": 0.183,
-            "thickness_m": 0.42,
-            "is_external": true
+            "thickness_m": 0.42
           },
           "right_wall": {
             "name": "Innenwand_115",
-            "element_type": "wall",
+            "element_type": "internal_wall",
             "u_value_w_m2k": 0.183,
-            "thickness_m": 0.115,
-            "is_external": false
-          }
+            "thickness_m": 0.115
+          },
+          "adjacent_room_temperature_name": null
         },
         {
           "orientation": "Norden 1",
           "length_m": 1.6,
           "construction": {
             "name": "Innenwand_115",
-            "element_type": "wall",
+            "element_type": "internal_wall",
             "u_value_w_m2k": 0.183,
-            "thickness_m": 0.115,
-            "is_external": false
+            "thickness_m": 0.115
           },
           "windows": [],
           "doors": [
@@ -192,27 +198,26 @@
                 "name": "Zimmertür",
                 "element_type": "door",
                 "u_value_w_m2k": 1.4,
-                "thickness_m": null,
-                "is_external": null
+                "thickness_m": null
               },
               "width_m": 0.87,
-              "height_m": 200.0
+              "height_m": 200.0,
+              "adjacent_temperature_name": null
             }
           ],
           "left_wall": {
             "name": "Innenwand_24",
-            "element_type": "wall",
+            "element_type": "internal_wall",
             "u_value_w_m2k": 1.6,
-            "thickness_m": 0.24,
-            "is_external": false
+            "thickness_m": 0.24
           },
           "right_wall": {
             "name": "Innenwand_115",
-            "element_type": "wall",
+            "element_type": "internal_wall",
             "u_value_w_m2k": 0.183,
-            "thickness_m": 0.115,
-            "is_external": false
-          }
+            "thickness_m": 0.115
+          },
+          "adjacent_room_temperature_name": null
         }
       ],
       "floor": {
@@ -222,11 +227,11 @@
           "name": "Boden",
           "element_type": "floor",
           "u_value_w_m2k": 1.0,
-          "thickness_m": 20.0,
-          "is_external": null
+          "thickness_m": 20.0
         },
         "width_m": null,
-        "height_m": null
+        "height_m": null,
+        "adjacent_temperature_name": "Keller"
       },
       "ceiling": {
         "type": "ceiling",
@@ -235,11 +240,11 @@
           "name": "Decke",
           "element_type": "ceiling",
           "u_value_w_m2k": 1.0,
-          "thickness_m": 20.0,
-          "is_external": null
+          "thickness_m": 20.0
         },
         "width_m": null,
-        "height_m": null
+        "height_m": null,
+        "adjacent_temperature_name": "Wohnraum"
       },
       "ventilation": {
         "air_change_1_h": 0.5
@@ -259,34 +264,32 @@
         }
       ],
       "height_m": 2.5,
-      "room_temperature": 22.0,
+      "room_temperature_name": "Bad",
       "walls": [
         {
           "orientation": "Osten",
           "length_m": 3.3899999999999997,
           "construction": {
             "name": "Außenwand",
-            "element_type": "wall",
+            "element_type": "external_wall",
             "u_value_w_m2k": 0.183,
-            "thickness_m": 0.42,
-            "is_external": true
+            "thickness_m": 0.42
           },
           "windows": [],
           "doors": [],
           "left_wall": {
             "name": "Innenwand_24",
-            "element_type": "wall",
+            "element_type": "internal_wall",
             "u_value_w_m2k": 1.6,
-            "thickness_m": 0.24,
-            "is_external": false
+            "thickness_m": 0.24
           },
           "right_wall": {
             "name": "Innenwand_115",
-            "element_type": "wall",
+            "element_type": "internal_wall",
             "u_value_w_m2k": 0.183,
-            "thickness_m": 0.115,
-            "is_external": false
-          }
+            "thickness_m": 0.115
+          },
+          "adjacent_room_temperature_name": null
         }
       ],
       "floor": {
@@ -296,11 +299,11 @@
           "name": "Boden",
           "element_type": "floor",
           "u_value_w_m2k": 1.0,
-          "thickness_m": 0.2,
-          "is_external": null
+          "thickness_m": 0.2
         },
         "width_m": null,
-        "height_m": null
+        "height_m": null,
+        "adjacent_temperature_name": "Keller"
       },
       "ceiling": {
         "type": "ceiling",
@@ -309,11 +312,11 @@
           "name": "Decke",
           "element_type": "ceiling",
           "u_value_w_m2k": 1.0,
-          "thickness_m": 0.2,
-          "is_external": null
+          "thickness_m": 0.2
         },
         "width_m": null,
-        "height_m": null
+        "height_m": null,
+        "adjacent_temperature_name": "Wohnraum"
       },
       "ventilation": {
         "air_change_1_h": 0.5

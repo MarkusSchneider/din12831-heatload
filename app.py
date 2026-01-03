@@ -3,6 +3,7 @@
 import streamlit as st
 from utils import load_building, save_building
 from tab_catalog import render_catalog_tab
+from tab_temperatures import render_temperatures_tab
 from tab_rooms import render_rooms_tab
 from tab_debug import render_debug_tab
 
@@ -22,22 +23,16 @@ def render_sidebar() -> None:
 
         building_name = st.text_input(
             "Gebäudename", value=st.session_state.building.name)
-        outside_temp = st.number_input(
-            "Normaußentemperatur (°C)",
-            value=st.session_state.building.outside_temperatur,
-            min_value=-30.0,
-            max_value=20.0,
-            step=1.0
-        )
 
         st.session_state.building.name = building_name
-        st.session_state.building.outside_temperatur = outside_temp
 
         st.divider()
         st.subheader("Gebäudeübersicht")
         st.metric("Anzahl Räume", len(st.session_state.building.rooms))
         st.metric("Konstruktionen im Katalog", len(
             st.session_state.building.construction_catalog))
+        st.metric("Temperaturen im Katalog", len(
+            st.session_state.building.temperature_catalog))
 
 
 def main() -> None:
@@ -49,7 +44,7 @@ def main() -> None:
 
     render_sidebar()
 
-    tab1, tab2, tab3 = st.tabs(["📐 Räume", "🏗️ Bauteilkatalog", "🔍 Debug"])
+    tab1, tab2, tab3, tab4 = st.tabs(["📐 Räume", "🏗️ Bauteilkatalog", "🌡️ Temperaturen", "🔍 Debug"])
 
     with tab1:
         render_rooms_tab()
@@ -58,6 +53,9 @@ def main() -> None:
         render_catalog_tab()
 
     with tab3:
+        render_temperatures_tab()
+
+    with tab4:
         render_debug_tab()
 
 
