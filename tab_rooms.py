@@ -103,7 +103,13 @@ def render_room_add_form() -> None:
                 selected_temp_name = None
 
             new_air_change = st.number_input(
-                "Luftwechsel (1/h)", min_value=0.0, value=0.5, step=0.1, key="new_air_change")
+                "Luftwechsel (1/h)",
+                min_value=0.0,
+                value=0.5,
+                step=0.1,
+                key="new_air_change",
+                help="Anzahl der Luftwechsel pro Stunde. Die Norm empfiehlt mindestens 0.5 1/h für Wohnräume -> Die halbe Raumluft wird pro Stunde ausgetauscht."
+            )
 
             floor_options = get_catalog_by_type(ConstructionType.FLOOR)
             ceiling_options = get_catalog_by_type(ConstructionType.CEILING)
@@ -359,7 +365,7 @@ def render_walls_section(room: Room, room_idx: int) -> None:
         if st.button("➕" if not show_form else "✖️",
                      key=f"toggle_wall_form_{room_idx}",
                      type="secondary",
-                     use_container_width=True):
+                     width='stretch'):
             st.session_state[form_state_key] = not show_form
             st.rerun()
 
@@ -571,7 +577,7 @@ def render_walls_section(room: Room, room_idx: int) -> None:
             # Button unten rechts ausrichten
             button_cols = st.columns([6, 1])
             with button_cols[1]:
-                add_wall = st.button("➕ Hinzufügen", type="primary", use_container_width=True, key=f"add_wall_btn_{room_idx}")
+                add_wall = st.button("➕ Hinzufügen", type="primary", width='stretch', key=f"add_wall_btn_{room_idx}")
 
         # Validierung und Hinzufügen außerhalb des Containers (nach Button-Click)
         if add_wall:
@@ -618,7 +624,7 @@ def render_wall_openings(room: Room, room_idx: int, wall: Wall, wall_idx: int) -
         if st.button("➕" if not show_form else "✖️",
                      key=f"toggle_opening_form_{room_idx}_{wall_idx}",
                      type="secondary",
-                     use_container_width=True):
+                     width='stretch'):
             st.session_state[form_state_key] = not show_form
             st.rerun()
 
@@ -734,7 +740,7 @@ def render_wall_openings(room: Room, room_idx: int, wall: Wall, wall_idx: int) -
             # Button rechts ausrichten
             button_cols = st.columns([6, 1])
             with button_cols[1]:
-                add_opening = st.form_submit_button("➕ Hinzufügen", type="primary", use_container_width=True, disabled=not combined_options)
+                add_opening = st.form_submit_button("➕ Hinzufügen", type="primary", width='stretch', disabled=not combined_options)
 
             if add_opening:
                 if not opening_name or opening_name.strip() == "":

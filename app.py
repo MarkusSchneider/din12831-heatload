@@ -55,19 +55,19 @@ def main() -> None:
 
     render_sidebar()
 
-    tab1, tab2, tab3, tab4, tab5 = st.tabs(["📐 Räume", "🏗️ Bauteilkatalog", "🌡️ Temperaturen", "📊 Report", "🔍 Debug"])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["📊 Report", "📐 Räume", "🏗️ Bauteilkatalog", "🌡️ Temperaturen", "🔍 Debug"])
 
     with tab1:
-        render_rooms_tab()
+        render_report_tab()
 
     with tab2:
-        render_catalog_tab()
+        render_rooms_tab()
 
     with tab3:
-        render_temperatures_tab()
+        render_catalog_tab()
 
     with tab4:
-        render_report_tab()
+        render_temperatures_tab()
 
     with tab5:
         render_debug_tab()

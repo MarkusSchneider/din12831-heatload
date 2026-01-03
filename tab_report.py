@@ -73,7 +73,7 @@ def render_report_tab() -> None:
     st.subheader("📋 Detaillierte Raumübersicht")
     st.dataframe(
         df,
-        use_container_width=True,
+        width='stretch',
         hide_index=True
     )
 
@@ -96,7 +96,7 @@ def render_report_tab() -> None:
 
             if element_data:
                 element_df = pd.DataFrame(element_data)
-                st.dataframe(element_df, use_container_width=True, hide_index=True)
+                st.dataframe(element_df, width='stretch', hide_index=True)
             else:
                 st.info("Keine Bauteile für diesen Raum definiert.")
 
