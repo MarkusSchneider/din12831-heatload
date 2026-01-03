@@ -30,8 +30,9 @@ jobs:
 
       - name: Build Executable
         run: |
-          chmod +x build_standalone.sh
-          ./build_standalone.sh
+          echo "🔨 Building executable with PyInstaller..."
+          pyinstaller app.spec --clean
+          echo "✅ Build complete!"
 
       - name: Create Archive
         run: |
