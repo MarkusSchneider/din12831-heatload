@@ -264,8 +264,11 @@ def render_walls_section(room: Room, room_idx: int) -> None:
 
     # Formular nur anzeigen wenn aktiviert
     if show_form:
-        with st.form(key=f"add_wall_form_{room_idx}"):
-            cols = st.columns([2, 2, 2])
+        # Container mit Rahmen anstatt st.form
+        with st.container(border=True):
+            # Restliche Eingaben
+            st.write("**Aufbau:**")
+            cols = st.columns([2,  2])
 
             with cols[0]:
                 wall_orientation = st.text_input(
@@ -276,15 +279,74 @@ def render_walls_section(room: Room, room_idx: int) -> None:
                 )
 
             with cols[1]:
-                wall_length = st.number_input(
-                    "Länge (m)", min_value=0.1, value=4.0, step=0.1, key=f"wall_length_{room_idx}")
-
-            with cols[2]:
                 wall_by_name = {c.name: c for c in wall_options}
                 selected_wall_constr = st.selectbox(
                     "Aufbau",
                     options=list(wall_by_name.keys()),
                     key=f"wall_constr_{room_idx}"
+                )
+
+            # Berechne die Gesamtlänge aus den Dropdowns
+            st.write("**Wandlänge:**")
+            areas = room.areas or []
+            selected_dimensions: list[float] = []
+
+            if areas:
+                # Zeige alle Dropdowns in einer Zeile
+                num_cols = len(areas) + 1  # +1 für das Eingabefeld
+                cols_dims = st.columns(num_cols)
+
+                # Session-State-Key für den aktuellen Wert
+                wall_length_key = f"wall_length_input_{room_idx}"
+
+                # Für jedes Rechteck ein Dropdown
+                for rect_idx, area in enumerate(areas, 1):
+                    with cols_dims[rect_idx]:  # +1 Offset wegen Eingabefeld ganz links
+                        rect_name = f"Fläche {rect_idx}" if len(areas) > 1 else "Fläche"
+                        options = [
+                            "Nicht verwenden",
+                            f"Länge ({area.length_m:.2f} m)",
+                            f"Breite ({area.width_m:.2f} m)"
+                        ]
+
+                        selection = st.selectbox(
+                            rect_name,
+                            options=options,
+                            key=f"wall_length_rect_{room_idx}_{rect_idx}",
+                            label_visibility="visible"
+                        )
+
+                        # Wert extrahieren wenn ausgewählt
+                        if selection.startswith("Länge"):
+                            selected_dimensions.append(area.length_m)
+                        elif selection.startswith("Breite"):
+                            selected_dimensions.append(area.width_m)
+
+                # Berechne Gesamtlänge aus Dropdowns
+                calculated_length = sum(selected_dimensions) if selected_dimensions else 0.0
+
+                # Wenn sich die berechnete Länge geändert hat, aktualisiere das Eingabefeld
+                if calculated_length > 0:
+                    st.session_state[wall_length_key] = calculated_length
+
+                # Eingabefeld für Wandlänge GANZ LINKS (erste Spalte)
+                with cols_dims[0]:
+                    wall_length = st.number_input(
+                        "Wandlänge (m)",
+                        min_value=0.0,
+                        value=st.session_state.get(wall_length_key, 0.0),
+                        step=0.1,
+                        key=wall_length_key,
+                        help="Wird automatisch aus den Dropdowns berechnet, kann aber manuell angepasst werden"
+                    )
+            else:
+                # Fallback: Nur manuelle Eingabe wenn keine Rechtecke vorhanden
+                wall_length = st.number_input(
+                    "Länge (m)",
+                    min_value=0.1,
+                    value=4.0,
+                    step=0.1,
+                    key=f"wall_length_manual_{room_idx}"
                 )
 
             # Nachbarwände aus Katalog auswählen
@@ -313,43 +375,35 @@ def render_walls_section(room: Room, room_idx: int) -> None:
             # Button unten rechts ausrichten
             button_cols = st.columns([6, 1])
             with button_cols[1]:
-                add_wall = st.form_submit_button("➕ Hinzufügen", type="primary", use_container_width=True)
+                add_wall = st.button("➕ Hinzufügen", type="primary", use_container_width=True, key=f"add_wall_btn_{room_idx}")
 
-            if not add_wall:
-                return
-
+        # Validierung und Hinzufügen außerhalb des Containers (nach Button-Click)
+        if add_wall:
             # Validierung der Pflichtfelder
             if not wall_orientation or wall_orientation.strip() == "":
                 st.error("Bitte geben Sie eine Richtung / Bezeichnung für die Wand ein.")
-                return
-
-            if wall_length <= 0:
+            elif wall_length <= 0:
                 st.error("Bitte geben Sie eine gültige Wandlänge größer als 0 ein.")
-                return
-
-            if left_wall_name == "Keine":
+            elif left_wall_name == "Keine":
                 st.error("Bitte wählen Sie eine Nachbarwand Links aus dem Katalog.")
-                return
-
-            if right_wall_name == "Keine":
+            elif right_wall_name == "Keine":
                 st.error("Bitte wählen Sie eine Nachbarwand Rechts aus dem Katalog.")
-                return
+            else:
+                wall = Wall(
+                    orientation=wall_orientation,
+                    length_m=wall_length,
+                    construction=wall_by_name[selected_wall_constr],
+                    left_wall=wall_by_name[left_wall_name],
+                    right_wall=wall_by_name[right_wall_name],
+                )
 
-            wall = Wall(
-                orientation=wall_orientation,
-                length_m=wall_length,
-                construction=wall_by_name[selected_wall_constr],
-                left_wall=wall_by_name[left_wall_name],
-                right_wall=wall_by_name[right_wall_name],
-            )
-
-            room.walls.append(wall)
-            # Formular ausblenden und State zurücksetzen
-            st.session_state[form_state_key] = False
-            st.session_state[f"room_{room_idx}_expanded"] = True
-            save_building(st.session_state.building)
-            st.success(f"Wand '{wall_orientation}' hinzugefügt!")
-            st.rerun()
+                room.walls.append(wall)
+                # Formular ausblenden und State zurücksetzen
+                st.session_state[form_state_key] = False
+                st.session_state[f"room_{room_idx}_expanded"] = True
+                save_building(st.session_state.building)
+                st.success(f"Wand '{wall_orientation}' hinzugefügt!")
+                st.rerun()
 
 
 def render_wall_openings(room: Room, room_idx: int, wall: Wall, wall_idx: int) -> None:

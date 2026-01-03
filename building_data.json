@@ -243,7 +243,8 @@
       },
       "ventilation": {
         "air_change_1_h": 0.5
-      }
+      },
+      "floor_plan_image": null
     },
     {
       "name": "Bad",
@@ -259,7 +260,35 @@
       ],
       "height_m": 2.5,
       "room_temperature": 22.0,
-      "walls": [],
+      "walls": [
+        {
+          "orientation": "Osten",
+          "length_m": 3.3899999999999997,
+          "construction": {
+            "name": "Außenwand",
+            "element_type": "wall",
+            "u_value_w_m2k": 0.183,
+            "thickness_m": 0.42,
+            "is_external": true
+          },
+          "windows": [],
+          "doors": [],
+          "left_wall": {
+            "name": "Innenwand_24",
+            "element_type": "wall",
+            "u_value_w_m2k": 1.6,
+            "thickness_m": 0.24,
+            "is_external": false
+          },
+          "right_wall": {
+            "name": "Innenwand_115",
+            "element_type": "wall",
+            "u_value_w_m2k": 0.183,
+            "thickness_m": 0.115,
+            "is_external": false
+          }
+        }
+      ],
       "floor": {
         "type": "floor",
         "name": "Boden",
@@ -288,7 +317,8 @@
       },
       "ventilation": {
         "air_change_1_h": 0.5
-      }
+      },
+      "floor_plan_image": null
     }
   ]
 }
