@@ -3,3 +3,6 @@ pydantic>=2.5
 
 # Build-Dependencies (nur für Standalone-Build)
 pyinstaller>=6.0
+
+# Test-Dependencies
+pytest>=7.0
