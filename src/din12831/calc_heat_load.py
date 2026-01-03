@@ -22,11 +22,21 @@ def calc_transmission_heat_load(room: Room, room_temp: float, outside_temperatur
 
     # Berechne Transmissionsverluste für Bauelemente (Boden, Decke, Fenster, Türen)
     for element in room.elements:
+        # Hole Construction aus Katalog
+        construction = building.get_construction_by_name(element.construction_name)
+        if construction is None:
+            continue  # Überspringe, wenn Konstruktion nicht gefunden
+
         delta_temp = room_temp - outside_temperatur
-        transmission_w += element.construction.u_value_w_m2k * element.area_m2 * delta_temp
+        transmission_w += construction.u_value_w_m2k * element.area_m2 * delta_temp
 
     # Berechne Transmissionsverluste für Wände (berücksichtige Innenwände)
     for wall in room.walls:
+        # Hole Wall-Construction aus Katalog
+        wall_construction = building.get_construction_by_name(wall.construction_name)
+        if wall_construction is None:
+            continue  # Überspringe, wenn Konstruktion nicht gefunden
+
         # Berechne Wandfläche
         wall_area_m2 = wall.net_length_m * room.net_height_m
 
@@ -37,7 +47,7 @@ def calc_transmission_heat_load(room: Room, room_temp: float, outside_temperatur
             wall_area_m2 -= door.area_m2
 
         # Bestimme Temperaturdifferenz basierend auf Wandtyp
-        if wall.construction.element_type == ConstructionType.INTERNAL_WALL:
+        if wall_construction.element_type == ConstructionType.INTERNAL_WALL:
             # Bei Innenwänden: Verwende Temperatur des angrenzenden Raums dynamisch aus Katalog
             adj_temp_obj = building.get_temperature_by_name(wall.adjacent_room_temperature_name)
             if adj_temp_obj is not None:
@@ -49,7 +59,7 @@ def calc_transmission_heat_load(room: Room, room_temp: float, outside_temperatur
             # Bei Außenwänden: Verwende Außentemperatur
             delta_temp = room_temp - outside_temperatur
 
-        transmission_w += wall.construction.u_value_w_m2k * wall_area_m2 * delta_temp
+        transmission_w += wall_construction.u_value_w_m2k * wall_area_m2 * delta_temp
 
     return transmission_w
 

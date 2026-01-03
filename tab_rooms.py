@@ -7,8 +7,8 @@ from utils import save_building, get_catalog_by_type
 
 
 def render_room_floor_ceiling_assignment(room: Room) -> None:
-    current_floor = room.floor.construction.name if room.floor else "Nicht zugewiesen"
-    current_ceiling = room.ceiling.construction.name if room.ceiling else "Nicht zugewiesen"
+    current_floor = room.floor.construction_name if room.floor else "Nicht zugewiesen"
+    current_ceiling = room.ceiling.construction_name if room.ceiling else "Nicht zugewiesen"
 
     col1, col2, _ = st.columns([2, 2, 1])
     with col1:
@@ -211,13 +211,13 @@ def render_room_add_form() -> None:
         new_room.floor = Element(
             type="floor",
             name="Boden",
-            construction=floor_by_name[floor_selected],
+            construction_name=floor_selected,
             adjacent_temperature_name=floor_adjacent_temp,
         )
         new_room.ceiling = Element(
             type="ceiling",
             name="Decke",
-            construction=ceiling_by_name[ceiling_selected],
+            construction_name=ceiling_selected,
             adjacent_temperature_name=ceiling_adjacent_temp,
         )
         st.session_state.building.rooms.append(new_room)
@@ -247,7 +247,7 @@ def render_room_info(room: Room, room_idx: int) -> None:
         room_temp_text = f"{room_temp.name} ({room_temp.value_celsius:.1f}°C)" if room_temp else "Nicht zugewiesen"
         st.write(f"**Raumtemperatur:** {room_temp_text}")
         st.write(f"**Luftwechsel:** {room.ventilation.air_change_1_h} 1/h")
-        st.write(f"**Bruttohöhe (Außenmaß):** {room.gross_height_m:.2f} m")
+        st.write(f"**Bruttohöhe (Außenmaß):** {room.gross_height_m(st.session_state.building):.2f} m")
     with col3:
         if st.button("🗑️ Löschen", key=f"delete_room_{room_idx}"):
             st.session_state.building.rooms.pop(room_idx)
@@ -313,14 +313,16 @@ def render_walls_section(room: Room, room_idx: int) -> None:
                 cols = st.columns([2, 2, 1])
 
                 with cols[0]:
-                    st.write(f"**Konstruktion:** {wall.construction.name}")
+                    wall_construction = st.session_state.building.get_construction_by_name(wall.construction_name)
+                    st.write(f"**Konstruktion:** {wall.construction_name}")
                     # Zeige Temperatur bei Innenwänden - lade dynamisch aus Katalog
-                    if wall.construction.element_type == ConstructionType.INTERNAL_WALL and wall.adjacent_room_temperature_name is not None:
+                    if wall_construction and wall_construction.element_type == ConstructionType.INTERNAL_WALL and wall.adjacent_room_temperature_name is not None:
                         adj_temp = st.session_state.building.get_temperature_by_name(wall.adjacent_room_temperature_name)
                         if adj_temp:
                             st.write(f"**Angrenzender Raum:** {adj_temp.name} ({adj_temp.value_celsius:.1f} °C)")
                 with cols[1]:
-                    st.write(f"**U-Wert:** {wall.construction.u_value_w_m2k:.2f} W/m²K")
+                    if wall_construction:
+                        st.write(f"**U-Wert:** {wall_construction.u_value_w_m2k:.2f} W/m²K")
                 with cols[2]:
                     if st.button("🗑️", key=f"delete_wall_{room_idx}_{wall_idx}"):
                         room.walls.pop(wall_idx)
@@ -333,22 +335,26 @@ def render_walls_section(room: Room, room_idx: int) -> None:
                 with length_cols[0]:
                     st.write(f"**Nettolänge (Innenmaß):** {wall.net_length_m:.2f} m")
                 with length_cols[1]:
-                    st.write(f"**Bruttolänge (Außenmaß):** {wall.gross_length_m:.2f} m")
+                    st.write(f"**Bruttolänge (Außenmaß):** {wall.gross_length_m(st.session_state.building):.2f} m")
 
                 # Nachbarwände (Bauteile aus Katalog) anzeigen
-                if wall.left_wall or wall.right_wall:
+                if wall.left_wall_name or wall.right_wall_name:
                     st.write("**Angrenzende Wandbauteile:**")
                     neighbor_cols = st.columns([2, 2, 1])
                     with neighbor_cols[0]:
-                        if wall.left_wall:
-                            wall_thickness = wall.left_wall.thickness_m or 0.0
-                            wall_thickness = wall_thickness / 2 if wall.left_wall.element_type == ConstructionType.INTERNAL_WALL else wall_thickness
-                            st.write(f"⬅️ **Links:** {wall.left_wall.name} (Dicke: {wall_thickness} m)")
+                        if wall.left_wall_name:
+                            left_wall = st.session_state.building.get_construction_by_name(wall.left_wall_name)
+                            if left_wall:
+                                wall_thickness = left_wall.thickness_m or 0.0
+                                wall_thickness = wall_thickness / 2 if left_wall.element_type == ConstructionType.INTERNAL_WALL else wall_thickness
+                                st.write(f"⬅️ **Links:** {left_wall.name} (Dicke: {wall_thickness} m)")
                     with neighbor_cols[1]:
-                        if wall.right_wall:
-                            wall_thickness = wall.right_wall.thickness_m or 0.0
-                            wall_thickness = wall_thickness / 2 if wall.right_wall.element_type == ConstructionType.INTERNAL_WALL else wall_thickness
-                            st.write(f"➡️ **Rechts:** {wall.right_wall.name} (Dicke: {wall_thickness} m)")
+                        if wall.right_wall_name:
+                            right_wall = st.session_state.building.get_construction_by_name(wall.right_wall_name)
+                            if right_wall:
+                                wall_thickness = right_wall.thickness_m or 0.0
+                                wall_thickness = wall_thickness / 2 if right_wall.element_type == ConstructionType.INTERNAL_WALL else wall_thickness
+                                st.write(f"➡️ **Rechts:** {right_wall.name} (Dicke: {wall_thickness} m)")
 
                 # Fenster/Türen-Sektion
                 st.divider()
@@ -526,9 +532,9 @@ def render_walls_section(room: Room, room_idx: int) -> None:
                 wall = Wall(
                     orientation=wall_orientation,
                     net_length_m=wall_length,
-                    construction=wall_by_name[selected_wall_constr],
-                    left_wall=wall_by_name[left_wall_name],
-                    right_wall=wall_by_name[right_wall_name],
+                    construction_name=selected_wall_constr,
+                    left_wall_name=left_wall_name,
+                    right_wall_name=right_wall_name,
                     adjacent_room_temperature_name=adjacent_temp_name,
                 )
 
@@ -566,7 +572,9 @@ def render_wall_openings(room: Room, room_idx: int, wall: Wall, wall_idx: int) -
             with cols[0]:
                 st.write(f"• {window.name}")
             with cols[1]:
-                st.write(f"{window.width_m:.2f} × {window.height_m:.2f} m = {window.area_m2:.2f} m² | U: {window.construction.u_value_w_m2k:.2f} W/m²K")
+                win_construction = st.session_state.building.get_construction_by_name(window.construction_name)
+                u_value_str = f"{win_construction.u_value_w_m2k:.2f}" if win_construction else "N/A"
+                st.write(f"{window.width_m:.2f} × {window.height_m:.2f} m = {window.area_m2:.2f} m² | U: {u_value_str} W/m²K")
             with cols[2]:
                 if st.button("🗑️", key=f"del_win_{room_idx}_{wall_idx}_{win_idx}"):
                     wall.windows.pop(win_idx)
@@ -582,7 +590,9 @@ def render_wall_openings(room: Room, room_idx: int, wall: Wall, wall_idx: int) -
             with cols[0]:
                 st.write(f"• {door.name}")
             with cols[1]:
-                st.write(f"{door.width_m:.2f} × {door.height_m:.2f} m = {door.area_m2:.2f} m² | U: {door.construction.u_value_w_m2k:.2f} W/m²K")
+                door_construction = st.session_state.building.get_construction_by_name(door.construction_name)
+                u_value_str = f"{door_construction.u_value_w_m2k:.2f}" if door_construction else "N/A"
+                st.write(f"{door.width_m:.2f} × {door.height_m:.2f} m = {door.area_m2:.2f} m² | U: {u_value_str} W/m²K")
             with cols[2]:
                 if st.button("🗑️", key=f"del_door_{room_idx}_{wall_idx}_{door_idx}"):
                     wall.doors.pop(door_idx)
@@ -691,7 +701,7 @@ def render_wall_openings(room: Room, room_idx: int, wall: Wall, wall_idx: int) -
                 element = Element(
                     type=opening_type,
                     name=opening_name,
-                    construction=construction,
+                    construction_name=construction.name,
                     width_m=opening_width,
                     height_m=opening_height,
                 )

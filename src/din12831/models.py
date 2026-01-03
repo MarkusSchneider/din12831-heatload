@@ -39,7 +39,7 @@ class Element(BaseModel):
 
     type: ElementType
     name: str
-    construction: Construction
+    construction_name: str = Field(description="Name der Konstruktion aus Katalog")
     width_m: float | None = Field(default=None, gt=0, description="Breite in m")
     height_m: float | None = Field(default=None, gt=0, description="Höhe in m")
     adjacent_temperature_name: str | None = Field(default=None, description="Name der Temperatur des angrenzenden Raums/Bereichs (z.B. für Boden/Decke)")
@@ -82,15 +82,14 @@ class Wall(BaseModel):
 
     orientation: str = Field(description="Richtung/Bezeichnung (z.B. Nord, Ost, Süd 1, West 2)")
     net_length_m: float = Field(gt=0, description="Netto-Wandlänge (Innenraumlänge) in m")
-    construction: Construction = Field(description="Wandkonstruktion aus Katalog")
+    construction_name: str = Field(description="Name der Wandkonstruktion aus Katalog")
     windows: list[Element] = Field(default_factory=list, description="Fenster in dieser Wand")
     doors: list[Element] = Field(default_factory=list, description="Türen in dieser Wand")
-    left_wall: Construction = Field(description="Linke Nachbarwand (Bauteil aus Katalog)")
-    right_wall: Construction = Field(description="Rechte Nachbarwand (Bauteil aus Katalog)")
+    left_wall_name: str = Field(description="Name der linken Nachbarwand (Bauteil aus Katalog)")
+    right_wall_name: str = Field(description="Name der rechten Nachbarwand (Bauteil aus Katalog)")
     adjacent_room_temperature_name: str | None = Field(default=None, description="Name der Temperatur des angrenzenden Raums (nur für Innenwände)")
 
-    @property
-    def gross_length_m(self) -> float:
+    def gross_length_m(self, building: Building) -> float:
         """
         Berechnet die Brutto-Wandlänge (Außenmaß).
 
@@ -98,13 +97,20 @@ class Wall(BaseModel):
         - Außenwand: volle Dicke wird addiert
         - Innenwand: halbe Dicke wird addiert
         """
-        left_thickness = (
-            self.left_wall.thickness_m if self.left_wall.element_type == ConstructionType.EXTERNAL_WALL else self.left_wall.thickness_m / 2.0
-        ) if self.left_wall.thickness_m is not None else 0.0
+        left_wall = building.get_construction_by_name(self.left_wall_name)
+        right_wall = building.get_construction_by_name(self.right_wall_name)
 
-        right_thickness = (
-            self.right_wall.thickness_m if self.right_wall.element_type == ConstructionType.EXTERNAL_WALL else self.right_wall.thickness_m / 2.0
-        ) if self.right_wall.thickness_m is not None else 0.0
+        left_thickness = 0.0
+        if left_wall and left_wall.thickness_m is not None:
+            left_thickness = (
+                left_wall.thickness_m if left_wall.element_type == ConstructionType.EXTERNAL_WALL else left_wall.thickness_m / 2.0
+            )
+
+        right_thickness = 0.0
+        if right_wall and right_wall.thickness_m is not None:
+            right_thickness = (
+                right_wall.thickness_m if right_wall.element_type == ConstructionType.EXTERNAL_WALL else right_wall.thickness_m / 2.0
+            )
 
         return self.net_length_m + left_thickness + right_thickness
 
@@ -129,17 +135,16 @@ class Room(BaseModel):
             return 0.0
         return sum(r.area_m2 for r in self.areas)
 
-    @property
-    def gross_height_m(self) -> float:
+    def gross_height_m(self, building: Building) -> float:
         """Berechnet die Brutto-Raumhöhe (Außenmaß).
 
         Bruttohöhe = Nettohöhe + Deckendicke
         """
-        ceiling_thickness = (
-            self.ceiling.construction.thickness_m
-            if self.ceiling and self.ceiling.construction.thickness_m is not None
-            else 0.0
-        )
+        ceiling_thickness = 0.0
+        if self.ceiling and self.ceiling.construction_name:
+            ceiling_construction = building.get_construction_by_name(self.ceiling.construction_name)
+            if ceiling_construction and ceiling_construction.thickness_m is not None:
+                ceiling_thickness = ceiling_construction.thickness_m
         return self.net_height_m + ceiling_thickness
 
     @property
@@ -180,6 +185,15 @@ class Building(BaseModel):
         for temp in self.temperature_catalog:
             if temp.name == name:
                 return temp
+        return None
+
+    def get_construction_by_name(self, name: str | None) -> Construction | None:
+        """Holt ein Bauteil aus dem Katalog nach Name."""
+        if name is None:
+            return None
+        for construction in self.construction_catalog:
+            if construction.name == name:
+                return construction
         return None
 
     @property
