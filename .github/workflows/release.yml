@@ -9,8 +9,17 @@ permissions:
   contents: write
 
 jobs:
-  build-and-release:
-    runs-on: ubuntu-latest
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            artifact_name: din12831-heatload
+            asset_name: din12831-heatload-linux-x64.tar.gz
+          - os: windows-latest
+            artifact_name: din12831-heatload.exe
+            asset_name: din12831-heatload-windows-x64.zip
     
     steps:
       - name: Checkout Code
@@ -34,11 +43,36 @@ jobs:
           pyinstaller app.spec --clean
           echo "✅ Build complete!"
 
-      - name: Create Archive
+      - name: Create Archive (Linux)
+        if: matrix.os == 'ubuntu-latest'
         run: |
           cd dist
           tar -czf din12831-heatload-linux-x64.tar.gz din12831-heatload
           cd ..
+
+      - name: Create Archive (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          cd dist
+          Compress-Archive -Path din12831-heatload.exe -DestinationPath din12831-heatload-windows-x64.zip
+          cd ..
+        shell: pwsh
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.asset_name }}
+          path: dist/${{ matrix.asset_name }}
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: artifacts
 
       - name: Extract Version
         id: version
@@ -58,11 +92,17 @@ jobs:
             3. Ausführbar machen: `chmod +x din12831-heatload`
             4. Starten: `./din12831-heatload`
             
+            ### Installation (Windows)
+            
+            1. Download `din12831-heatload-windows-x64.zip`
+            2. Entpacken mit Windows Explorer oder PowerShell: `Expand-Archive din12831-heatload-windows-x64.zip`
+            3. Starten: Doppelklick auf `din12831-heatload.exe`
+            
             ### Was ist neu?
             
             Siehe CHANGELOG für Details.
           files: |
-            dist/din12831-heatload-linux-x64.tar.gz
-            dist/din12831-heatload
+            artifacts/din12831-heatload-linux-x64.tar.gz/*
+            artifacts/din12831-heatload-windows-x64.zip/*
           draft: false
           prerelease: false
