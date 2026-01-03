@@ -241,13 +241,13 @@ def render_room_info(room: Room, room_idx: int) -> None:
         st.write(f"**Fläche:** {room.floor_area_m2:.2f} m²")
         st.write(f"**Volumen:** {room.volume_m3:.2f} m³")
         st.write(f"**Nettohöhe (Innenmaß):** {room.net_height_m:.2f} m")
-        st.write(f"**Bruttohöhe (Außenmaß):** {room.gross_height_m:.2f} m")
     with col2:
         # Lade Temperatur dynamisch aus Katalog
         room_temp = st.session_state.building.get_temperature_by_name(room.room_temperature_name)
         room_temp_text = f"{room_temp.name} ({room_temp.value_celsius:.1f}°C)" if room_temp else "Nicht zugewiesen"
         st.write(f"**Raumtemperatur:** {room_temp_text}")
         st.write(f"**Luftwechsel:** {room.ventilation.air_change_1_h} 1/h")
+        st.write(f"**Bruttohöhe (Außenmaß):** {room.gross_height_m:.2f} m")
     with col3:
         if st.button("🗑️ Löschen", key=f"delete_room_{room_idx}"):
             st.session_state.building.rooms.pop(room_idx)
