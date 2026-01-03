@@ -3,11 +3,12 @@
 
 import sys
 from pathlib import Path
-from PyInstaller.utils.hooks import collect_data_files, collect_submodules
+from PyInstaller.utils.hooks import collect_data_files, collect_submodules, copy_metadata
 
-# Streamlit-Daten sammeln
+# Streamlit-Daten und Metadaten sammeln
 streamlit_data = collect_data_files("streamlit")
 streamlit_hidden = collect_submodules("streamlit")
+streamlit_metadata = copy_metadata("streamlit")
 
 a = Analysis(
     ['app.py'],
@@ -16,8 +17,9 @@ a = Analysis(
     datas=[
         # JSON-Datei mit einpacken
         ('building_data.json', '.'),
-        # Streamlit-Assets
+        # Streamlit-Assets und Metadaten
         *streamlit_data,
+        *streamlit_metadata,
     ],
     hiddenimports=[
         'streamlit',
