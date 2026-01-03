@@ -5,6 +5,7 @@ from utils import load_building
 from tab_catalog import render_catalog_tab
 from tab_temperatures import render_temperatures_tab
 from tab_rooms import render_rooms_tab
+from tab_report import render_report_tab
 from tab_debug import render_debug_tab
 
 st.set_page_config(page_title="DIN EN 12831 Heizlast", layout="wide")
@@ -54,7 +55,7 @@ def main() -> None:
 
     render_sidebar()
 
-    tab1, tab2, tab3, tab4 = st.tabs(["📐 Räume", "🏗️ Bauteilkatalog", "🌡️ Temperaturen", "🔍 Debug"])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["📐 Räume", "🏗️ Bauteilkatalog", "🌡️ Temperaturen", "📊 Report", "🔍 Debug"])
 
     with tab1:
         render_rooms_tab()
@@ -66,6 +67,9 @@ def main() -> None:
         render_temperatures_tab()
 
     with tab4:
+        render_report_tab()
+
+    with tab5:
         render_debug_tab()
 
 
