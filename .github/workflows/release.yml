@@ -1,0 +1,67 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'  # Triggert bei Tags wie v1.0.0, v1.2.3, etc.
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build Executable
+        run: |
+          chmod +x build_standalone.sh
+          ./build_standalone.sh
+
+      - name: Create Archive
+        run: |
+          cd dist
+          tar -czf din12831-heatload-linux-x64.tar.gz din12831-heatload
+          cd ..
+
+      - name: Extract Version
+        id: version
+        run: echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: Release ${{ steps.version.outputs.version }}
+          body: |
+            ## DIN 12831 Heizlastberechnung - Release ${{ steps.version.outputs.version }}
+            
+            ### Installation (Linux)
+            
+            1. Download `din12831-heatload-linux-x64.tar.gz`
+            2. Entpacken: `tar -xzf din12831-heatload-linux-x64.tar.gz`
+            3. Ausführbar machen: `chmod +x din12831-heatload`
+            4. Starten: `./din12831-heatload`
+            
+            ### Was ist neu?
+            
+            Siehe CHANGELOG für Details.
+          files: |
+            dist/din12831-heatload-linux-x64.tar.gz
+            dist/din12831-heatload
+          draft: false
+          prerelease: false
