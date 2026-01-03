@@ -10,23 +10,50 @@ streamlit_data = collect_data_files("streamlit")
 streamlit_hidden = collect_submodules("streamlit")
 streamlit_metadata = copy_metadata("streamlit")
 
+# Zusätzliche Metadaten für andere Packages
+try:
+    altair_metadata = copy_metadata("altair")
+except Exception:
+    altair_metadata = []
+
+try:
+    click_metadata = copy_metadata("click")
+except Exception:
+    click_metadata = []
+
 a = Analysis(
-    ['app.py'],
+    ['launcher.py'],
     pathex=[],
     binaries=[],
     datas=[
+        # Main app script
+        ('app.py', '.'),
+        # Tab modules
+        ('tab_catalog.py', '.'),
+        ('tab_debug.py', '.'),
+        ('tab_report.py', '.'),
+        ('tab_rooms.py', '.'),
+        ('tab_temperatures.py', '.'),
+        ('utils.py', '.'),
         # JSON-Datei mit einpacken
         ('building_data.json', '.'),
+        # Source package
+        ('src/', 'src/'),
         # Streamlit-Assets und Metadaten
         *streamlit_data,
         *streamlit_metadata,
+        *altair_metadata,
+        *click_metadata,
     ],
     hiddenimports=[
         'streamlit',
+        'streamlit.web.cli',
         'streamlit.runtime.scriptrunner.magic_funcs',
         'pydantic',
         'pydantic.json_schema',
         'pydantic_core',
+        'click',
+        'validators',
         *streamlit_hidden,
     ],
     hookspath=[],

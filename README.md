@@ -102,3 +102,9 @@ python -m venv .venv
 pip install -r requirements.txt
 streamlit run app.py
 ```
+
+## Standalone Executable (Windows)
+
+Für Windows-Nutzer steht eine eigenständige .exe-Datei zur Verfügung, die keine Python-Installation benötigt.
+
+Siehe **[WINDOWS_USAGE.md](WINDOWS_USAGE.md)** für detaillierte Anweisungen zur Nutzung der Standalone-Version.
