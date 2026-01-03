@@ -133,6 +133,10 @@ def count_temperature_usage(temperature: Temperature) -> int:
     if building.outside_temperature_name == temperature.name:
         count += 1
 
+    # Prüfe ob es die Standard-Raumtemperatur ist
+    if building.default_room_temperature_name == temperature.name:
+        count += 1
+
     # Prüfe alle Räume
     for room in building.rooms:
         if room.room_temperature_name == temperature.name:
@@ -164,17 +168,56 @@ def render_outside_temperature_selection() -> None:
     if current_temp_name and current_temp_name in temp_names:
         current_index = temp_names.index(current_temp_name)
 
-    selected_name = st.selectbox(
-        "Wählen Sie die Normaußentemperatur",
-        options=temp_names,
-        index=current_index,
-        format_func=lambda name: f"{name} ({temp_by_name[name].value_celsius:.1f} °C)",
-        key="outside_temp_select"
-    )
+    cols = st.columns([2, 2, 1])
+    with cols[0]:
+        selected_name = st.selectbox(
+            "Wählen Sie die Normaußentemperatur",
+            options=temp_names,
+            index=current_index,
+            format_func=lambda name: f"{name} ({temp_by_name[name].value_celsius:.1f} °C)",
+            key="outside_temp_select",
+            help="Siehe: https://www.waermepumpe.de/werkzeuge/klimakarte/"
+        )
 
     if selected_name:
         if st.session_state.building.outside_temperature_name != selected_name:
             st.session_state.building.outside_temperature_name = selected_name
+            save_building(st.session_state.building)
+            st.rerun()
+
+
+def render_default_room_temperature_selection() -> None:
+    """Zeigt Auswahl für die Standard-Raumtemperatur."""
+    st.subheader("Standard-Raumtemperatur")
+
+    catalog = st.session_state.building.temperature_catalog
+    if not catalog:
+        st.warning("Bitte fügen Sie zuerst Temperaturen zum Katalog hinzu.")
+        return
+
+    temp_by_name = {t.name: t for t in catalog}
+    temp_names = list(temp_by_name.keys())
+
+    # Aktuelle Auswahl
+    current_temp_name = st.session_state.building.default_room_temperature_name
+    current_index = 0
+    if current_temp_name and current_temp_name in temp_names:
+        current_index = temp_names.index(current_temp_name)
+
+    cols = st.columns([2, 2, 1])
+    with cols[0]:
+        selected_name = st.selectbox(
+            "Wählen Sie die Standard-Raumtemperatur",
+            options=temp_names,
+            index=current_index,
+            format_func=lambda name: f"{name} ({temp_by_name[name].value_celsius:.1f} °C)",
+            key="default_room_temp_select",
+            help="Diese Temperatur wird beim Erstellen neuer Räume vorgeschlagen."
+        )
+
+    if selected_name:
+        if st.session_state.building.default_room_temperature_name != selected_name:
+            st.session_state.building.default_room_temperature_name = selected_name
             save_building(st.session_state.building)
             st.rerun()
 
@@ -187,7 +230,13 @@ def render_temperatures_tab() -> None:
     render_temperature_add_form()
     st.divider()
 
-    render_outside_temperature_selection()
+    # Normtemperaturen zweispaltig anzeigen
+    col1, col2 = st.columns(2)
+    with col1:
+        render_outside_temperature_selection()
+    with col2:
+        render_default_room_temperature_selection()
+
     st.divider()
 
     render_temperature_list()

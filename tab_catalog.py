@@ -46,7 +46,7 @@ def render_catalog_add_form() -> None:
         catalog_thickness = None
         if has_thickness:
             with cols[3]:
-                catalog_thickness = st.number_input("Dicke (m)", min_value=0.01, value=0.30, step=0.01, key="catalog_thickness")
+                catalog_thickness = st.number_input("Dicke (m)", min_value=0.00, value=0.30, step=0.01, key="catalog_thickness")
 
         if st.button("Konstruktion hinzufügen", type="primary", key="add_catalog"):
             if not catalog_name:

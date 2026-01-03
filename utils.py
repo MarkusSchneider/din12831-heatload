@@ -3,7 +3,7 @@
 import streamlit as st
 import json
 from pathlib import Path
-from src.din12831.models import Building, Room, Construction, ConstructionType
+from src.din12831.models import Building, Construction, ConstructionType
 
 DATA_FILE = Path("building_data.json")
 

@@ -22,7 +22,7 @@ class Construction(BaseModel):
     name: str
     element_type: ConstructionType = Field(default=ConstructionType.EXTERNAL_WALL, description="Bauteiltyp")
     u_value_w_m2k: float = Field(gt=0, description="U-Wert in W/(m²·K)")
-    thickness_m: float | None = Field(default=None, gt=0, description="Dicke (nur für Wand/Decke/Boden)")
+    thickness_m: float | None = Field(default=None, ge=0, description="Dicke (nur für Wand/Decke/Boden)")
 
 
 class Temperature(BaseModel):
@@ -137,6 +137,7 @@ class Building(BaseModel):
     name: str
     temperature_catalog: list[Temperature] = Field(default_factory=list, description="Temperaturkatalog")
     outside_temperature_name: str | None = Field(default=None, description="Name der Normaußentemperatur aus Katalog")
+    default_room_temperature_name: str | None = Field(default=None, description="Name der Standard-Raumtemperatur aus Katalog")
     construction_catalog: list[Construction] = Field(default_factory=list, description="Bauteilkatalog")
     rooms: list[Room] = Field(default_factory=list)
 
@@ -153,6 +154,11 @@ class Building(BaseModel):
     def outside_temperature(self) -> Temperature | None:
         """Gibt die Normaußentemperatur aus dem Katalog zurück."""
         return self.get_temperature_by_name(self.outside_temperature_name)
+
+    @property
+    def default_room_temperature(self) -> Temperature | None:
+        """Gibt die Standard-Raumtemperatur aus dem Katalog zurück."""
+        return self.get_temperature_by_name(self.default_room_temperature_name)
 
     # Für Abwärtskompatibilität - wird deprecated
     @property

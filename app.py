@@ -1,7 +1,7 @@
 """Hauptanwendung für die DIN EN 12831 Heizlastberechnung."""
 
 import streamlit as st
-from utils import load_building, save_building
+from utils import load_building
 from tab_catalog import render_catalog_tab
 from tab_temperatures import render_temperatures_tab
 from tab_rooms import render_rooms_tab

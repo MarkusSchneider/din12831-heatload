@@ -30,6 +30,15 @@ def render_room_add_form() -> None:
     """Zeigt Formular zum Hinzufügen eines neuen Raums."""
     is_empty = len(st.session_state.building.rooms) == 0
 
+    # Bestimme den vorausgewählten Index basierend auf der Standard-Raumtemperatur
+    temp_catalog: list[Temperature] = st.session_state.building.temperature_catalog
+    temp_by_name: dict[str, Temperature] = {t.name: t for t in temp_catalog}
+
+    default_index = 0
+    default_temp_name = st.session_state.building.default_room_temperature_name
+    if default_temp_name and default_temp_name in temp_by_name:
+        default_index = list(temp_by_name.keys()).index(default_temp_name)
+
     with st.expander("➕ Neuen Raum hinzufügen", expanded=is_empty):
         col1, col2 = st.columns(2)
 
@@ -80,12 +89,11 @@ def render_room_add_form() -> None:
                 "Höhe (m)", min_value=0.1, value=2.5, step=0.1, key="new_height")
 
             # Raumtemperatur aus Katalog auswählen
-            temp_catalog = st.session_state.building.temperature_catalog
             if temp_catalog:
-                temp_by_name = {t.name: t for t in temp_catalog}
                 selected_temp_name = st.selectbox(
                     "Raumtemperatur",
                     options=list(temp_by_name.keys()),
+                    index=default_index,
                     format_func=lambda name: f"{name} ({temp_by_name[name].value_celsius:.1f} °C)",
                     key="new_temp"
                 )
@@ -118,6 +126,7 @@ def render_room_add_form() -> None:
                     st.selectbox(
                         "Angrenzende Temperatur",
                         options=list(temp_by_name.keys()),
+                        index=default_index,
                         format_func=lambda name: f"{name} ({temp_by_name[name].value_celsius:.1f} °C)",
                         key="new_floor_adjacent_temp",
                         help="Temperatur des Raums/Bereichs unterhalb des Bodens"
@@ -142,6 +151,7 @@ def render_room_add_form() -> None:
                     st.selectbox(
                         "Angrenzende Temperatur",
                         options=list(temp_by_name.keys()),
+                        index=default_index,
                         format_func=lambda name: f"{name} ({temp_by_name[name].value_celsius:.1f} °C)",
                         key="new_ceiling_adjacent_temp",
                         help="Temperatur des Raums/Bereichs oberhalb der Decke"
@@ -230,6 +240,7 @@ def render_room_info(room: Room, room_idx: int) -> None:
     with col1:
         st.write(f"**Fläche:** {room.floor_area_m2:.2f} m²")
         st.write(f"**Volumen:** {room.volume_m3:.2f} m³")
+        st.write(f"**Höhe:** {room.height_m:.2f} m")
     with col2:
         # Lade Temperatur dynamisch aus Katalog
         room_temp = st.session_state.building.get_temperature_by_name(room.room_temperature_name)
@@ -247,8 +258,6 @@ def render_room_areas_editor(room: Room, room_idx: int) -> None:
     if room.areas is None:
         room.areas = []
 
-    expander_state_key = f"room_{room_idx}_expanded"
-
     rect_ids_key = f"room_{room_idx}_rect_ids"
     if rect_ids_key not in st.session_state or len(st.session_state[rect_ids_key]) != len(room.areas):
         st.session_state[rect_ids_key] = list(range(1, len(room.areas) + 1)) or [1]
@@ -258,7 +267,7 @@ def render_room_areas_editor(room: Room, room_idx: int) -> None:
     rect_ids: list[int] = st.session_state[rect_ids_key]
 
     st.subheader("Flächen")
-    for idx, rect_id in enumerate(list(rect_ids)):
+    for idx, _ in enumerate(list(rect_ids)):
         rect = room.areas[idx]
         cols = st.columns([2, 2, 1])
         with cols[0]:
@@ -380,9 +389,17 @@ def render_walls_section(room: Room, room_idx: int) -> None:
                     temp_catalog = st.session_state.building.temperature_catalog
                     if temp_catalog:
                         temp_by_name = {t.name: t for t in temp_catalog}
+
+                        # Bestimme Standardindex basierend auf default_room_temperature_name
+                        default_adj_index = 0
+                        default_temp_name = st.session_state.building.default_room_temperature_name
+                        if default_temp_name and default_temp_name in temp_by_name:
+                            default_adj_index = list(temp_by_name.keys()).index(default_temp_name)
+
                         selected_adj_temp_name = st.selectbox(
                             "Temperatur des angrenzenden Raums",
                             options=list(temp_by_name.keys()),
+                            index=default_adj_index,
                             format_func=lambda name: f"{name} ({temp_by_name[name].value_celsius:.1f} °C)",
                             key=f"adjacent_temp_{room_idx}",
                             help="Wählen Sie die Temperatur des Raums, der an diese Innenwand angrenzt"
@@ -437,12 +454,10 @@ def render_walls_section(room: Room, room_idx: int) -> None:
                 # Eingabefeld für Wandlänge GANZ LINKS (erste Spalte)
                 with cols_dims[0]:
                     wall_length = st.number_input(
-                        "Wandlänge (m)",
+                        "Wandlänge (m) -> aus Länge/Breite der Flächen oder manuell anpassen",
                         min_value=0.0,
-                        value=st.session_state.get(wall_length_key, 0.0),
                         step=0.1,
                         key=wall_length_key,
-                        help="Wird automatisch aus den Dropdowns berechnet, kann aber manuell angepasst werden"
                     )
             else:
                 # Fallback: Nur manuelle Eingabe wenn keine Rechtecke vorhanden
