@@ -1,7 +1,6 @@
 """Launcher for the Streamlit app when running as a standalone executable."""
 
 import sys
-import os
 from pathlib import Path
 
 
@@ -10,7 +9,7 @@ def main():
     # Get the directory where the executable is located
     if getattr(sys, 'frozen', False):
         # Running as compiled executable
-        app_dir = Path(sys._MEIPASS)
+        app_dir = Path(getattr(sys, '_MEIPASS', ''))
     else:
         # Running as script
         app_dir = Path(__file__).parent
@@ -26,6 +25,7 @@ def main():
         "streamlit",
         "run",
         str(app_path),
+        "--global.developmentMode=false",
         "--server.headless=true",
         "--browser.gatherUsageStats=false",
         "--server.port=8501",
