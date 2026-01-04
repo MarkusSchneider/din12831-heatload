@@ -18,6 +18,18 @@ if [ -z "$VIRTUAL_ENV" ]; then
     fi
 fi
 
+# Unit Tests ausführen
+echo ""
+echo "🧪 Führe Unit Tests aus..."
+if ! python -m pytest tests/ -v; then
+    echo ""
+    echo "❌ Unit Tests fehlgeschlagen!"
+    echo "   Build wird abgebrochen."
+    exit 1
+fi
+echo ""
+echo "✅ Alle Tests bestanden!"
+
 # PyInstaller installieren falls nicht vorhanden
 if ! python -c "import PyInstaller" 2>/dev/null; then
     echo "📦 Installiere PyInstaller..."

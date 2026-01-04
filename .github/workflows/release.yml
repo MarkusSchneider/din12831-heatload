@@ -37,6 +37,12 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller
 
+      - name: Run Unit Tests
+        run: |
+          echo "🧪 Running unit tests..."
+          python -m pytest tests/ -v
+          echo "✅ All tests passed!"
+
       - name: Build Executable
         run: |
           echo "🔨 Building executable with PyInstaller..."
