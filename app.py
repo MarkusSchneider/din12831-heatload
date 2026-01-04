@@ -1,12 +1,15 @@
 """Hauptanwendung für die DIN EN 12831 Heizlastberechnung."""
 
 import streamlit as st
-from utils import load_building
+import json
+from pathlib import Path
+from utils import load_building, save_building
 from tab_catalog import render_catalog_tab
 from tab_temperatures import render_temperatures_tab
 from tab_rooms import render_rooms_tab
 from tab_report import render_report_tab
 from tab_debug import render_debug_tab
+from src.din12831.models import Building
 
 st.set_page_config(page_title="DIN EN 12831 Heizlast", layout="wide")
 
@@ -22,9 +25,32 @@ def render_sidebar() -> None:
     with st.sidebar:
         st.header("Gebäude-Einstellungen")
 
+        # File Upload für Gebäudedaten
+        st.subheader("📂 Datei laden")
+        uploaded_file = st.file_uploader(
+            "Gebäudedaten laden",
+            type=['json'],
+            help="Wähle eine building_data*.json Datei zum Laden"
+        )
+
+        if uploaded_file is not None:
+            try:
+                data = json.load(uploaded_file)
+                st.session_state.building = Building.model_validate(data)
+                st.success(f"✅ Datei '{uploaded_file.name}' erfolgreich geladen!")
+                # Speichere das geladene Gebäude direkt
+                save_building(st.session_state.building)
+            except Exception as e:
+                st.error(f"❌ Fehler beim Laden der Datei: {e}")
+
+        st.divider()
+
         building_name = st.text_input("Gebäudename", value=st.session_state.building.name)
 
-        st.session_state.building.name = building_name
+        # Wenn sich der Name ändert, speichere unter neuem Dateinamen
+        if building_name != st.session_state.building.name:
+            st.session_state.building.name = building_name
+            save_building(st.session_state.building)
 
         u_value_correction = st.number_input(
             "U-Wert-Korrekturfaktor",
@@ -35,7 +61,9 @@ def render_sidebar() -> None:
             help="Korrekturfaktor für U-Werte (Standard: 0.05)"
         )
 
-        st.session_state.building.u_value_correction_factor = u_value_correction
+        if u_value_correction != st.session_state.building.u_value_correction_factor:
+            st.session_state.building.u_value_correction_factor = u_value_correction
+            save_building(st.session_state.building)
 
         st.divider()
         st.subheader("Gebäudeübersicht")

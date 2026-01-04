@@ -1,13 +1,13 @@
 {
-  "name": "Mein Gebäude",
+  "name": "Demo",
   "temperature_catalog": [
     {
       "name": "Außen",
-      "value_celsius": -9.0
+      "value_celsius": -8.5
     },
     {
       "name": "Bad",
-      "value_celsius": 24.0
+      "value_celsius": 22.0
     },
     {
       "name": "Wohnraum",
@@ -86,6 +86,7 @@
       "thickness_m": 0.0
     }
   ],
+  "u_value_correction_factor": 0.05,
   "rooms": [
     {
       "name": "Arbeitszimmer",
@@ -101,87 +102,155 @@
         {
           "orientation": "Osten",
           "net_length_m": 3.7,
+          "construction_name": "Außenwand",
           "windows": [],
           "doors": [],
-          "adjacent_room_temperature_name": null,
-          "construction_name": "Außenwand",
           "left_wall_name": "Innenwand_24",
-          "right_wall_name": "Außenwand"
+          "right_wall_name": "Außenwand",
+          "adjacent_room_temperature_name": null
         },
         {
           "orientation": "Süden",
           "net_length_m": 3.7,
+          "construction_name": "Außenwand",
           "windows": [
             {
               "type": "window",
               "name": "Fenster 1",
+              "construction_name": "Fenster",
               "width_m": 1.8,
               "height_m": 1.18,
-              "adjacent_temperature_name": null,
-              "construction_name": "Fenster"
+              "adjacent_temperature_name": null
             }
           ],
           "doors": [],
-          "adjacent_room_temperature_name": null,
-          "construction_name": "Außenwand",
           "left_wall_name": "Außenwand",
-          "right_wall_name": "Innenwand_24"
+          "right_wall_name": "Innenwand_24",
+          "adjacent_room_temperature_name": null
         },
         {
           "orientation": "Westen",
           "net_length_m": 3.7,
+          "construction_name": "Innenwand_24",
           "windows": [],
           "doors": [],
-          "adjacent_room_temperature_name": "Wohnraum",
-          "construction_name": "Innenwand_24",
           "left_wall_name": "Außenwand",
-          "right_wall_name": "Innenwand_12"
+          "right_wall_name": "Innenwand_12",
+          "adjacent_room_temperature_name": "Wohnraum"
         },
         {
           "orientation": "Norden 1",
           "net_length_m": 1.6,
+          "construction_name": "Innenwand_12",
           "windows": [],
           "doors": [
             {
               "type": "door",
               "name": "Zimmertür",
+              "construction_name": "Zimmertür",
               "width_m": 0.87,
               "height_m": 2.0,
-              "adjacent_temperature_name": null,
-              "construction_name": "Zimmertür"
+              "adjacent_temperature_name": null
             }
           ],
-          "adjacent_room_temperature_name": "Unbeheizt",
-          "construction_name": "Innenwand_12",
           "left_wall_name": "Innenwand_24",
-          "right_wall_name": "Trennung"
+          "right_wall_name": "Trennung",
+          "adjacent_room_temperature_name": "Unbeheizt"
         },
         {
           "orientation": "Norden 2",
           "net_length_m": 2.1,
+          "construction_name": "Innenwand_12",
           "windows": [],
           "doors": [],
-          "adjacent_room_temperature_name": "Bad",
-          "construction_name": "Innenwand_12",
           "left_wall_name": "Trennung",
-          "right_wall_name": "Außenwand"
+          "right_wall_name": "Außenwand",
+          "adjacent_room_temperature_name": "Bad"
         }
       ],
       "floor": {
         "type": "floor",
         "name": "Boden",
+        "construction_name": "Boden",
         "width_m": null,
         "height_m": null,
-        "adjacent_temperature_name": "Keller",
-        "construction_name": "Boden"
+        "adjacent_temperature_name": "Keller"
       },
       "ceiling": {
         "type": "ceiling",
         "name": "Decke",
+        "construction_name": "Decke",
         "width_m": null,
         "height_m": null,
-        "adjacent_temperature_name": "Wohnraum",
-        "construction_name": "Decke"
+        "adjacent_temperature_name": "Wohnraum"
+      },
+      "ventilation": {
+        "air_change_1_h": 0.5
+      },
+      "floor_plan_image": null
+    },
+    {
+      "name": "Bad",
+      "areas": [
+        {
+          "length_m": 2.37,
+          "width_m": 1.96
+        },
+        {
+          "length_m": 1.4,
+          "width_m": 0.71
+        }
+      ],
+      "net_height_m": 2.5,
+      "room_temperature_name": "Bad",
+      "walls": [],
+      "floor": {
+        "type": "floor",
+        "name": "Boden",
+        "construction_name": "Boden",
+        "width_m": null,
+        "height_m": null,
+        "adjacent_temperature_name": "Keller"
+      },
+      "ceiling": {
+        "type": "ceiling",
+        "name": "Decke",
+        "construction_name": "Decke",
+        "width_m": null,
+        "height_m": null,
+        "adjacent_temperature_name": "Wohnraum"
+      },
+      "ventilation": {
+        "air_change_1_h": 1.0
+      },
+      "floor_plan_image": null
+    },
+    {
+      "name": "Esszimmer",
+      "areas": [
+        {
+          "length_m": 3.71,
+          "width_m": 3.0
+        }
+      ],
+      "net_height_m": 2.5,
+      "room_temperature_name": "Wohnraum",
+      "walls": [],
+      "floor": {
+        "type": "floor",
+        "name": "Boden",
+        "construction_name": "Boden",
+        "width_m": null,
+        "height_m": null,
+        "adjacent_temperature_name": "Keller"
+      },
+      "ceiling": {
+        "type": "ceiling",
+        "name": "Decke",
+        "construction_name": "Decke",
+        "width_m": null,
+        "height_m": null,
+        "adjacent_temperature_name": "Wohnraum"
       },
       "ventilation": {
         "air_change_1_h": 0.5
