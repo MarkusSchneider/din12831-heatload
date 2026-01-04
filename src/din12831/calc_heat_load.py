@@ -49,7 +49,7 @@ def calc_element_transmission(building: Building, element_name: str, constructio
     """
     construction = building.get_construction_by_name(construction_name)
     u_value_w_m2k = construction.u_value_w_m2k
-    u_value_corrected_w_m2k = u_value_w_m2k + building.u_value_correction_factor
+    u_value_corrected_w_m2k = u_value_w_m2k + building.thermal_bridge_surcharge
     net_area_m2 = area_m2 - deduction_area_m2
     transmission_w = u_value_corrected_w_m2k * net_area_m2 * delta_temp
 

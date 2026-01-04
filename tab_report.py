@@ -50,7 +50,7 @@ def render_report_tab() -> None:
     with col2:
         st.metric("Normaußentemperatur", f"{building.outside_temperature.value_celsius:.1f} °C")
     with col3:
-        st.metric("U-Wert-Korrekturfaktor", f"{building.u_value_correction_factor:.3f}")
+        st.metric("Wärmebrückenzuschlag", f"{building.thermal_bridge_surcharge:.3f}")
 
     st.divider()
 

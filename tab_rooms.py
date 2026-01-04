@@ -269,7 +269,7 @@ def render_room_heat_loads(room: Room, room_idx: int) -> None:
                 with header_cols[2]:
                     st.write("**U-Wert [W/m²K]**")
                 with header_cols[3]:
-                    st.write("**korr. U-Wert [W/m²K]**")
+                    st.write("**U-Wert korr. [W/m²K]**")
                 with header_cols[4]:
                     st.write("**ΔT [K]**")
                 with header_cols[5]:

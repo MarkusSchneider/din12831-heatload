@@ -52,17 +52,17 @@ def render_sidebar() -> None:
             st.session_state.building.name = building_name
             save_building(st.session_state.building)
 
-        u_value_correction = st.number_input(
-            "U-Wert-Korrekturfaktor",
+        thermal_bridge_surcharge = st.number_input(
+            "Wärmebrückenzuschlag",
             min_value=0.001,
-            value=st.session_state.building.u_value_correction_factor,
+            value=st.session_state.building.thermal_bridge_surcharge,
             step=0.01,
             format="%.3f",
-            help="Korrekturfaktor für U-Werte (Standard: 0.05)"
+            help="Wärmebrückenzuschlag (Standard: 0.05). Wird pauschal zu allen U-Werten addiert. Liegt typisch zwischen 0.03 und 0.10."
         )
 
-        if u_value_correction != st.session_state.building.u_value_correction_factor:
-            st.session_state.building.u_value_correction_factor = u_value_correction
+        if thermal_bridge_surcharge != st.session_state.building.thermal_bridge_surcharge:
+            st.session_state.building.thermal_bridge_surcharge = thermal_bridge_surcharge
             save_building(st.session_state.building)
 
         st.divider()
