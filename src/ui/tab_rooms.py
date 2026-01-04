@@ -178,7 +178,21 @@ def render_floor_ceiling_selectors() -> tuple[Optional[str], Optional[str], Opti
 def render_rectangle_editor(rect_id: int, rect_ids: list[int]) -> Area:
     """Zeigt Editor für ein einzelnes Rechteck."""
     wall_catalog = get_wall_catalog()
-    wall_catalog_names = ["Keine"] + [c.name for c in wall_catalog]
+    wall_catalog_names = [c.name for c in wall_catalog]
+
+    # Ensure "Trennung" construction exists for internal boundaries
+    if "Trennung" not in wall_catalog_names:
+        # Add Trennung construction if it doesn't exist
+        from src.models import Construction, ConstructionType
+        trennung = Construction(
+            name="Trennung",
+            element_type=ConstructionType.INTERNAL_WALL,
+            u_value_w_m2k=1.0,
+            thickness_m=0.0
+        )
+        if trennung.name not in [c.name for c in st.session_state.building.construction_catalog]:
+            st.session_state.building.construction_catalog.append(trennung)
+        wall_catalog_names.insert(0, "Trennung")
 
     # Zeile 1: Oben (Bauteil)
     row1 = st.columns([1, 3, 1])
@@ -254,14 +268,14 @@ def render_rectangle_editor(rect_id: int, rect_ids: list[int]) -> Area:
     return Area(
         length_m=float(r_len),
         width_m=float(r_wid),
-        left_adjacent_name=None if left_wall == "Keine" else left_wall,
-        top_adjacent_name=None if top_wall == "Keine" else top_wall,
-        right_adjacent_name=None if right_wall == "Keine" else right_wall,
-        bottom_adjacent_name=None if bottom_wall == "Keine" else bottom_wall,
+        left_adjacent_name=left_wall,
+        top_adjacent_name=top_wall,
+        right_adjacent_name=right_wall,
+        bottom_adjacent_name=bottom_wall,
     )
 
 
-def render_rectangles_section() -> list[Area]:
+def render_areas_section() -> list[Area]:
     """Zeigt die Sektion zum Bearbeiten von Rechtecken."""
     rect_ids_key = "new_room_rect_ids"
     if rect_ids_key not in st.session_state:
@@ -271,7 +285,7 @@ def render_rectangles_section() -> list[Area]:
     rectangles_payload: list[Area] = []
     rect_ids: list[int] = st.session_state[rect_ids_key]
 
-    for idx, rect_id in enumerate(list(rect_ids), 1):
+    for _, rect_id in enumerate(list(rect_ids), 1):
         area = render_rectangle_editor(rect_id, rect_ids)
         rectangles_payload.append(area)
 
@@ -332,14 +346,14 @@ def create_new_room(
     )
 
     new_room.floor = Element(
-        type="floor",
+        type=ElementType.FLOOR,
         name="Boden",
         construction_name=floor_constr,
         adjacent_temperature_name=floor_temp,
     )
 
     new_room.ceiling = Element(
-        type="ceiling",
+        type=ElementType.CEILING,
         name="Decke",
         construction_name=ceiling_constr,
         adjacent_temperature_name=ceiling_temp,
@@ -367,7 +381,7 @@ def render_room_add_form() -> None:
 
         with col1:
             new_room_name = st.text_input("Raumname", key="new_room_name")
-            rectangles_payload = render_rectangles_section()
+            rectangles_payload = render_areas_section()
 
         with col2:
             new_height = st.number_input(
@@ -559,20 +573,18 @@ def render_area_info(area: Area, area_idx: int, total_areas: int) -> None:
 
         # Angrenzende Bauteile
         st.write("**Angrenzende Bauteile:**")
-        adjacent_info = []
-        if area.left_adjacent_name:
-            adjacent_info.append(f"⬅️ Links: {area.left_adjacent_name}")
-        if area.top_adjacent_name:
-            adjacent_info.append(f"⬆️ Oben: {area.top_adjacent_name}")
-        if area.right_adjacent_name:
-            adjacent_info.append(f"➡️ Rechts: {area.right_adjacent_name}")
-        if area.bottom_adjacent_name:
-            adjacent_info.append(f"⬇️ Unten: {area.bottom_adjacent_name}")
+        adjacent_info = [
+            f"⬅️ Links: {area.left_adjacent_name}",
+            f"⬆️ Oben: {area.top_adjacent_name}",
+            f"➡️ Rechts: {area.right_adjacent_name}",
+            f"⬇️ Unten: {area.bottom_adjacent_name}"
+        ]
 
-        if adjacent_info:
-            for info in adjacent_info:
-                st.write(f"  {info}")
-        else:
+        for info in adjacent_info:
+            st.write(f"  {info}")
+
+        # Dummy else block for consistency
+        if False:
             st.info("Keine angrenzenden Bauteile definiert")
 
 
