@@ -28,13 +28,6 @@ a = Analysis(
     datas=[
         # Main app script
         ('app.py', '.'),
-        # Tab modules
-        ('tab_catalog.py', '.'),
-        ('tab_debug.py', '.'),
-        ('tab_report.py', '.'),
-        ('tab_rooms.py', '.'),
-        ('tab_temperatures.py', '.'),
-        ('utils.py', '.'),
         # JSON-Datei mit einpacken
         ('building_data.json', '.'),
         # Source package
