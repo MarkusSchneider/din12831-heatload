@@ -55,135 +55,22 @@ class Ventilation(BaseModel):
     air_change_1_h: float = Field(default=0.5, ge=0.0, description="Luftwechsel n in 1/h")
 
 
-class AdjacentSegment(BaseModel):
-    """
-    Segment einer Seite mit eigener Länge und Konstruktion.
-
-    Wird verwendet, wenn eine Seite einer Area aus mehreren Teilen besteht,
-    z.B. ein Teil grenzt an eine Wand, ein anderer Teil an eine andere Area.
-    """
-
-    length_m: float = Field(gt=0, description="Länge dieses Segments in m")
-    adjacent_name: str = Field(description="Name des angrenzenden Bauteils aus Katalog")
-
-
 class Area(BaseModel):
     """
     Rechteckige Teilfläche eines Raums (Boden/Decke).
 
-    Repräsentiert ein Rechteck mit Netto-Abmessungen und optionalen Verknüpfungen
-    zu angrenzenden Bauteilen für Brutto-Flächenberechnungen (Außenmaße).
+    Repräsentiert ein Rechteck mit Netto-Abmessungen (Länge × Breite).
     Wird verwendet für Räume mit komplexen Grundrissen (L-Form, etc.).
-
-    Jede Seite kann entweder durch einen einfachen adjacent_name ODER durch
-    eine Liste von Segmenten (segments) definiert werden.
+    Die Brutto-Fläche wird aus den Wänden des Raums berechnet.
     """
 
     length_m: float = Field(ge=0)
     width_m: float = Field(ge=0)
 
-    # Angrenzende Bauteile für Brutto-Flächen-Berechnung (einfache Variante)
-    left_adjacent_name: str | None = Field(
-        default=None, description="Name des linken angrenzenden Bauteils aus Katalog"
-    )
-    top_adjacent_name: str | None = Field(default=None, description="Name des oberen angrenzenden Bauteils aus Katalog")
-    right_adjacent_name: str | None = Field(
-        default=None, description="Name des rechten angrenzenden Bauteils aus Katalog"
-    )
-    bottom_adjacent_name: str | None = Field(
-        default=None, description="Name des unteren angrenzenden Bauteils aus Katalog"
-    )
-
-    # Alternative: Segmentierte Seiten (überschreibt adjacent_name)
-    left_segments: list[AdjacentSegment] | None = Field(default=None, description="Segmente der linken Seite")
-    top_segments: list[AdjacentSegment] | None = Field(default=None, description="Segmente der oberen Seite")
-    right_segments: list[AdjacentSegment] | None = Field(default=None, description="Segmente der rechten Seite")
-    bottom_segments: list[AdjacentSegment] | None = Field(default=None, description="Segmente der unteren Seite")
-
-    @model_validator(mode="after")
-    def validate_adjacent_definitions(self):
-        """Validiere, dass jede Seite entweder adjacent_name ODER segments definiert hat."""
-        sides = [
-            ("left", self.left_adjacent_name, self.left_segments, self.width_m),
-            ("right", self.right_adjacent_name, self.right_segments, self.width_m),
-            ("top", self.top_adjacent_name, self.top_segments, self.length_m),
-            ("bottom", self.bottom_adjacent_name, self.bottom_segments, self.length_m),
-        ]
-
-        for side_name, adjacent_name, segments, expected_length in sides:
-            if adjacent_name is None and segments is None:
-                raise ValueError(f"Side '{side_name}' must have either adjacent_name or segments defined")
-
-            # Wenn Segmente definiert sind, prüfe ob die Summe der Längen korrekt ist
-            if segments is not None:
-                total_segment_length = sum(seg.length_m for seg in segments)
-                if abs(total_segment_length - expected_length) > 0.001:  # Toleranz für Rundungsfehler
-                    raise ValueError(
-                        f"Side '{side_name}': Sum of segment lengths ({total_segment_length:.3f}m) "
-                        f"must equal area dimension ({expected_length:.3f}m)"
-                    )
-
-        return self
-
-    def _get_side_thickness(
-        self,
-        building: Building,
-        side_name: str,
-        adjacent_name: str | None,
-        segments: list[AdjacentSegment] | None,
-        side_length: float,
-    ) -> float:
-        """
-        Berechnet die gewichtete durchschnittliche Dicke einer Seite.
-
-        Wenn segments definiert sind, wird ein gewichteter Durchschnitt berechnet.
-        Sonst wird die Dicke des adjacent_name verwendet.
-        """
-        if segments is not None:
-            # Gewichteter Durchschnitt der Segmentdicken
-            weighted_sum = 0.0
-            for segment in segments:
-                thickness = get_adjacent_thickness(building, segment.adjacent_name)
-                weighted_sum += segment.length_m * thickness
-            return weighted_sum / side_length
-        elif adjacent_name is not None:
-            return get_adjacent_thickness(building, adjacent_name)
-        else:
-            raise ValueError(f"Side '{side_name}' has neither adjacent_name nor segments defined")
-
     @property
     def area_m2(self) -> float:
         """Berechnet die Netto-Fläche (Länge × Breite)."""
         return self.length_m * self.width_m
-
-    def gross_area_m2(self, building: Building) -> float:
-        """
-        Berechnet die Brutto-Fläche unter Berücksichtigung angrenzender Bauteile.
-
-        Bruttolänge = Länge + obere Wanddicke + untere Wanddicke
-        Bruttobreite = Breite + linke Wanddicke + rechte Wanddicke
-        Bruttofläche = Bruttolänge × Bruttobreite
-
-        Für Seiten mit mehreren Segmenten wird ein gewichteter Durchschnitt der Dicken berechnet.
-        Für interne Grenzen zwischen Flächen wird eine Konstruktion mit Dicke=0 verwendet.
-        """
-        left_thickness = self._get_side_thickness(
-            building, "left", self.left_adjacent_name, self.left_segments, self.width_m
-        )
-        right_thickness = self._get_side_thickness(
-            building, "right", self.right_adjacent_name, self.right_segments, self.width_m
-        )
-        top_thickness = self._get_side_thickness(
-            building, "top", self.top_adjacent_name, self.top_segments, self.length_m
-        )
-        bottom_thickness = self._get_side_thickness(
-            building, "bottom", self.bottom_adjacent_name, self.bottom_segments, self.length_m
-        )
-
-        gross_length = self.length_m + top_thickness + bottom_thickness
-        gross_width = self.width_m + left_thickness + right_thickness
-
-        return gross_length * gross_width
 
 
 # =============================================================================
@@ -365,26 +252,112 @@ class Room(BaseModel):
         return self.net_height_m + ceiling_thickness
 
     def gross_floor_area_m2(self, building: Building) -> float:
-        """Berechnet die Brutto-Grundfläche des Bodens als Summe der Bruttoflächen aller Rechtecke.
+        """Berechnet die Brutto-Grundfläche des Bodens nach Option C.
 
-        Jedes Rechteck kann unterschiedliche angrenzende Bauteile haben.
+        Bruttofläche = Nettofläche + Σ (Nettolänge + Dicke_links/2 + Dicke_rechts/2) × Wanddicke
+
+        Für jede Wand wird ein Flächenstreifen berechnet, der die halben Nachbarwanddicken
+        einbezieht. So werden Ecken automatisch korrekt erfasst (jede Ecke von zwei Wänden
+        je zur Hälfte).
         """
         if not self.floor or not self.areas:
             return 0.0
 
-        # Summiere die Bruttoflächen aller Rechtecke
-        return sum(area.gross_area_m2(building) for area in self.areas)
+        # Nettofläche als Basis
+        net_area = self.floor_area_m2
+
+        # Addiere Flächenstreifen für jede Wand
+        floor_construction = building.get_construction_by_name(self.floor.construction_name)
+        if not floor_construction or floor_construction.thickness_m is None:
+            return net_area
+
+        floor_thickness = floor_construction.thickness_m
+
+        for wall in self.walls:
+            wall_construction = building.get_construction_by_name(wall.construction_name)
+            if not wall_construction or wall_construction.thickness_m is None:
+                continue
+
+            wall_thickness = wall_construction.thickness_m
+
+            # Berechne Dicke der linken Nachbarwand (halbe Dicke bei Innenwand)
+            left_thickness = 0.0
+            if wall.left_wall_name:
+                left_constr = building.get_construction_by_name(wall.left_wall_name)
+                if left_constr and left_constr.thickness_m is not None:
+                    left_thickness = left_constr.thickness_m
+                    if left_constr.element_type == ConstructionType.INTERNAL_WALL:
+                        left_thickness = left_thickness / 2
+
+            # Berechne Dicke der rechten Nachbarwand (halbe Dicke bei Innenwand)
+            right_thickness = 0.0
+            if wall.right_wall_name:
+                right_constr = building.get_construction_by_name(wall.right_wall_name)
+                if right_constr and right_constr.thickness_m is not None:
+                    right_thickness = right_constr.thickness_m
+                    if right_constr.element_type == ConstructionType.INTERNAL_WALL:
+                        right_thickness = right_thickness / 2
+
+            # Flächenstreifen: (Nettolänge + halbe Nachbardicken) × Wanddicke
+            strip_length = wall.net_length_m + left_thickness + right_thickness
+            strip_area = strip_length * floor_thickness
+            net_area += strip_area
+
+        return net_area
 
     def gross_ceiling_area_m2(self, building: Building) -> float:
-        """Berechnet die Brutto-Grundfläche der Decke als Summe der Bruttoflächen aller Rechtecke.
+        """Berechnet die Brutto-Grundfläche der Decke nach Option C.
 
-        Jedes Rechteck kann unterschiedliche angrenzende Bauteile haben.
+        Bruttofläche = Nettofläche + Σ (Nettolänge + Dicke_links/2 + Dicke_rechts/2) × Wanddicke
+
+        Für jede Wand wird ein Flächenstreifen berechnet, der die halben Nachbarwanddicken
+        einbezieht. So werden Ecken automatisch korrekt erfasst (jede Ecke von zwei Wänden
+        je zur Hälfte).
         """
         if not self.ceiling or not self.areas:
             return 0.0
 
-        # Summiere die Bruttoflächen aller Rechtecke
-        return sum(area.gross_area_m2(building) for area in self.areas)
+        # Nettofläche als Basis
+        net_area = self.floor_area_m2
+
+        # Addiere Flächenstreifen für jede Wand
+        ceiling_construction = building.get_construction_by_name(self.ceiling.construction_name)
+        if not ceiling_construction or ceiling_construction.thickness_m is None:
+            return net_area
+
+        ceiling_thickness = ceiling_construction.thickness_m
+
+        for wall in self.walls:
+            wall_construction = building.get_construction_by_name(wall.construction_name)
+            if not wall_construction or wall_construction.thickness_m is None:
+                continue
+
+            wall_thickness = wall_construction.thickness_m
+
+            # Berechne Dicke der linken Nachbarwand (halbe Dicke bei Innenwand)
+            left_thickness = 0.0
+            if wall.left_wall_name:
+                left_constr = building.get_construction_by_name(wall.left_wall_name)
+                if left_constr and left_constr.thickness_m is not None:
+                    left_thickness = left_constr.thickness_m
+                    if left_constr.element_type == ConstructionType.INTERNAL_WALL:
+                        left_thickness = left_thickness / 2
+
+            # Berechne Dicke der rechten Nachbarwand (halbe Dicke bei Innenwand)
+            right_thickness = 0.0
+            if wall.right_wall_name:
+                right_constr = building.get_construction_by_name(wall.right_wall_name)
+                if right_constr and right_constr.thickness_m is not None:
+                    right_thickness = right_constr.thickness_m
+                    if right_constr.element_type == ConstructionType.INTERNAL_WALL:
+                        right_thickness = right_thickness / 2
+
+            # Flächenstreifen: (Nettolänge + halbe Nachbardicken) × Wanddicke
+            strip_length = wall.net_length_m + left_thickness + right_thickness
+            strip_area = strip_length * ceiling_thickness
+            net_area += strip_area
+
+        return net_area
 
     @property
     def volume_m3(self) -> float:

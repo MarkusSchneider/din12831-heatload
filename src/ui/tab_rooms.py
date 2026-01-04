@@ -157,51 +157,20 @@ def render_floor_ceiling_selectors() -> tuple[str | None, str | None, str | None
     return floor_construction, floor_temp, ceiling_construction, ceiling_temp
 
 
-def render_rectangle_editor(rect_id: int, rect_ids: list[int]) -> Area:
+def render_area_editor(rect_id: int, rect_ids: list[int]) -> Area:
     """Zeigt Editor für ein einzelnes Rechteck."""
-    wall_catalog = get_wall_catalog()
-    wall_catalog_names = [c.name for c in wall_catalog]
+    cols = st.columns([2, 2, 1])
 
-    # Ensure "Trennung" construction exists for internal boundaries
-    if "Trennung" not in wall_catalog_names:
-        # Add Trennung construction if it doesn't exist
-        from src.models import Construction, ConstructionType
-
-        trennung = Construction(
-            name="Trennung", element_type=ConstructionType.INTERNAL_WALL, u_value_w_m2k=1.0, thickness_m=0.0
+    with cols[0]:
+        r_len = st.number_input(
+            "Länge (m)",
+            min_value=0.0,
+            value=0.0,
+            step=0.1,
+            key=f"new_room_rect_{rect_id}_len",
         )
-        if trennung.name not in [c.name for c in st.session_state.building.construction_catalog]:
-            st.session_state.building.construction_catalog.append(trennung)
-        wall_catalog_names.insert(0, "Trennung")
 
-    # Zeile 1: Oben (Bauteil)
-    row1 = st.columns([1, 3, 1])
-    with row1[1]:
-        top_row = st.columns([1, 1])
-        with top_row[0]:
-            r_len = st.number_input(
-                "Länge (m)",
-                min_value=0.0,
-                value=0.0,
-                step=0.1,
-                key=f"new_room_rect_{rect_id}_len",
-            )
-        with top_row[1]:
-            top_wall = st.selectbox(
-                "Konstruktion Oben",
-                options=wall_catalog_names,
-                key=f"new_room_rect_{rect_id}_top",
-                help="Aufbau Wand oben vom Rechteck",
-            )
-    with row1[2]:
-        if len(rect_ids) > 1 and st.button("🗑️", key=f"new_room_rect_{rect_id}_del"):
-            rect_ids.remove(rect_id)
-            st.session_state["new_room_rect_ids"] = rect_ids
-            st.rerun()
-
-    # Zeile 2: Links - Rechteck-Darstellung - Rechts
-    row2 = st.columns([2, 1, 2])
-    with row2[0]:
+    with cols[1]:
         r_wid = st.number_input(
             "Breite (m)",
             min_value=0.0,
@@ -209,49 +178,17 @@ def render_rectangle_editor(rect_id: int, rect_ids: list[int]) -> Area:
             step=0.1,
             key=f"new_room_rect_{rect_id}_wid",
         )
-        left_wall = st.selectbox(
-            "Konstruktion Links",
-            options=wall_catalog_names,
-            key=f"new_room_rect_{rect_id}_left",
-            help="Aufbau Wand links vom Rechteck",
-        )
-    with row2[1]:
-        st.markdown(
-            """
-            <div style='text-align: center; padding: 20px; border: 2px solid #ccc; border-radius: 8px; background-color: #f0f2f6; margin-top: 24px;'>
-                <p style='margin: 0; font-size: 24px;'>📐</p>
-                <p style='margin: 0; font-size: 12px; color: #666;'>Rechteck</p>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-    with row2[2]:
-        right_wall = st.selectbox(
-            "Konstruktion Rechts",
-            options=wall_catalog_names,
-            key=f"new_room_rect_{rect_id}_right",
-            help="Aufbau Wand rechts vom Rechteck",
-        )
 
-    # Zeile 3: Unten (Bauteil, zentriert)
-    row3 = st.columns([2, 3, 2])
-    with row3[1]:
-        bottom_wall = st.selectbox(
-            "Konstruktion Unten",
-            options=wall_catalog_names,
-            key=f"new_room_rect_{rect_id}_bottom",
-            help="Aufbau Wand unten vom Rechteck",
-        )
-
-    st.divider()
+    with cols[2]:
+        st.write("")  # Spacer für vertikale Ausrichtung
+        if len(rect_ids) > 1 and st.button("🗑️", key=f"new_room_rect_{rect_id}_del"):
+            rect_ids.remove(rect_id)
+            st.session_state["new_room_rect_ids"] = rect_ids
+            st.rerun()
 
     return Area(
         length_m=float(r_len),
         width_m=float(r_wid),
-        left_adjacent_name=left_wall,
-        top_adjacent_name=top_wall,
-        right_adjacent_name=right_wall,
-        bottom_adjacent_name=bottom_wall,
     )
 
 
@@ -266,7 +203,7 @@ def render_areas_section() -> list[Area]:
     rect_ids: list[int] = st.session_state[rect_ids_key]
 
     for _, rect_id in enumerate(list(rect_ids), 1):
-        area = render_rectangle_editor(rect_id, rect_ids)
+        area = render_area_editor(rect_id, rect_ids)
         rectangles_payload.append(area)
 
     if st.button("➕ Weitere Fläche hinzufügen", key="add_new_room_rect"):
@@ -283,7 +220,6 @@ def validate_new_room_inputs(
 ) -> str | None:
     """Validiert die Eingaben für einen neuen Raum. Gibt Fehlermeldung zurück oder None."""
     if not room_name:
-        return "Bitte geben Sie einen Raumnamen ein."
         return "Bitte geben Sie einen Raumnamen ein."
 
     if not rectangles:
@@ -596,10 +532,9 @@ def render_room_info(room: Room, room_idx: int) -> None:
 def render_area_info(area: Area, area_idx: int, total_areas: int) -> None:
     """Zeigt Informationen zu einer Fläche."""
     net_area = area.area_m2
-    gross_area = area.gross_area_m2(st.session_state.building)
 
     title = f"Fläche {area_idx + 1}" if total_areas > 1 else "Fläche"
-    expander_title = f"📐 {title}: {area.length_m:.2f} m × {area.width_m:.2f} m = {net_area:.2f} m² (Netto) / {gross_area:.2f} m² (Brutto)"
+    expander_title = f"📐 {title}: {area.length_m:.2f} m × {area.width_m:.2f} m = {net_area:.2f} m²"
 
     with st.expander(expander_title, expanded=False):
         cols = st.columns([2, 2])
@@ -608,23 +543,6 @@ def render_area_info(area: Area, area_idx: int, total_areas: int) -> None:
             st.write(f"**Breite:** {area.width_m:.2f} m")
         with cols[1]:
             st.write(f"**Nettofläche:** {net_area:.2f} m²")
-            st.write(f"**Bruttofläche:** {gross_area:.2f} m²")
-
-        # Angrenzende Bauteile
-        st.write("**Angrenzende Bauteile:**")
-        area_cols = st.columns([1, 1, 1, 1])
-        with area_cols[0]:
-            st.write(f"⬅️ Links: {area.left_adjacent_name}")
-        with area_cols[1]:
-            st.write(f"⬆️ Oben: {area.top_adjacent_name}")
-        with area_cols[2]:
-            st.write(f"➡️ Rechts: {area.right_adjacent_name}")
-        with area_cols[3]:
-            st.write(f"⬇️ Unten: {area.bottom_adjacent_name}")
-
-        # Dummy else block for consistency
-        if False:
-            st.info("Keine angrenzenden Bauteile definiert")
 
 
 def render_room_areas_editor(room: Room, room_idx: int) -> None:

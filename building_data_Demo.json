@@ -93,11 +93,7 @@
       "areas": [
         {
           "length_m": 3.7,
-          "width_m": 3.7,
-          "left_adjacent_name": "Innenwand_12",
-          "top_adjacent_name": "Außenwand",
-          "right_adjacent_name": "Außenwand",
-          "bottom_adjacent_name": "Innenwand_24"
+          "width_m": 3.7
         }
       ],
       "net_height_m": 2.5,
@@ -198,28 +194,11 @@
       "areas": [
         {
           "length_m": 2.37,
-          "width_m": 1.96,
-          "left_segments": [
-            {
-              "length_m": 1.25,
-              "adjacent_name": "Innenwand_12"
-            },
-            {
-              "length_m": 0.71,
-              "adjacent_name": "Trennung"
-            }
-          ],
-          "top_adjacent_name": "Außenwand",
-          "right_adjacent_name": "Innenwand_12",
-          "bottom_adjacent_name": "Innenwand_12"
+          "width_m": 1.96
         },
         {
           "length_m": 1.03,
-          "width_m": 0.71,
-          "left_adjacent_name": "Innenwand_24",
-          "top_adjacent_name": "Außenwand",
-          "right_adjacent_name": "Trennung",
-          "bottom_adjacent_name": "Innenwand_12"
+          "width_m": 0.71
         }
       ],
       "net_height_m": 2.5,

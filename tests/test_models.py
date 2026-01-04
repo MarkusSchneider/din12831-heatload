@@ -316,165 +316,14 @@ class TestArea:
         area = Area(
             length_m=5.0,
             width_m=4.0,
-            left_adjacent_name="No Wall",
-            right_adjacent_name="No Wall",
-            top_adjacent_name="No Wall",
-            bottom_adjacent_name="No Wall",
         )
         assert area.area_m2 == 20.0
 
-    def test_area_with_adjacents(self):
-        area = Area(
-            length_m=5.0,
-            width_m=4.0,
-            left_adjacent_name="Wall Left",
-            right_adjacent_name="Wall Right",
-            top_adjacent_name="Wall Top",
-            bottom_adjacent_name="Wall Bottom",
-        )
-        assert area.left_adjacent_name == "Wall Left"
-        assert area.right_adjacent_name == "Wall Right"
 
-    def test_area_gross_calculation_no_building(self):
-        """Test that gross_area_m2 with zero-thickness constructions gives net area."""
-        no_wall = Construction(
-            name="No Wall", element_type=ConstructionType.INTERNAL_WALL, u_value_w_m2k=0.5, thickness_m=0.0
-        )
-        building = Building(name="Test Building", construction_catalog=[no_wall])
-        area = Area(
-            length_m=5.0,
-            width_m=4.0,
-            left_adjacent_name="No Wall",
-            right_adjacent_name="No Wall",
-            top_adjacent_name="No Wall",
-            bottom_adjacent_name="No Wall",
-        )
-        gross_area = area.gross_area_m2(building)
-        assert gross_area == 20.0  # Zero thickness, so same as net
 
-    def test_area_gross_calculation_with_adjacent_walls(self):
-        """Test gross area calculation with adjacent walls."""
-        # Create building with constructions
-        external_wall = Construction(
-            name="External Wall", element_type=ConstructionType.EXTERNAL_WALL, u_value_w_m2k=0.24, thickness_m=0.36
-        )
-        internal_wall = Construction(
-            name="Internal Wall", element_type=ConstructionType.INTERNAL_WALL, u_value_w_m2k=0.5, thickness_m=0.12
-        )
-        building = Building(name="Test Building", construction_catalog=[external_wall, internal_wall])
 
-        area = Area(
-            length_m=5.0,
-            width_m=4.0,
-            left_adjacent_name="External Wall",  # Full thickness: 0.36
-            right_adjacent_name="Internal Wall",  # Half thickness: 0.06
-            top_adjacent_name="External Wall",  # Full thickness: 0.36
-            bottom_adjacent_name="Internal Wall",  # Half thickness: 0.06
-        )
 
-        # Gross length = 5.0 + 0.36 + 0.06 = 5.42
-        # Gross width = 4.0 + 0.36 + 0.06 = 4.42
-        # Gross area = 5.42 * 4.42 = 23.9564
-        gross_area = area.gross_area_m2(building)
-        assert gross_area == pytest.approx(23.9564)
 
-    def test_area_gross_calculation_partial_adjacents(self):
-        """Test gross area with external and internal boundary (zero-thickness)."""
-        external_wall = Construction(
-            name="External Wall", element_type=ConstructionType.EXTERNAL_WALL, u_value_w_m2k=0.24, thickness_m=0.36
-        )
-        no_wall = Construction(
-            name="No Wall", element_type=ConstructionType.INTERNAL_WALL, u_value_w_m2k=0.5, thickness_m=0.0
-        )
-        building = Building(name="Test Building", construction_catalog=[external_wall, no_wall])
-
-        area = Area(
-            length_m=5.0,
-            width_m=4.0,
-            left_adjacent_name="External Wall",  # 0.36
-            right_adjacent_name="No Wall",  # 0.0 (internal boundary)
-            top_adjacent_name="No Wall",  # 0.0
-            bottom_adjacent_name="No Wall",  # 0.0
-        )
-
-        # Gross length = 5.0 + 0.0 + 0.0 = 5.0
-        # Gross width = 4.0 + 0.36 + 0.0 = 4.36
-        # Gross area = 5.0 * 4.36 = 21.8
-        gross_area = area.gross_area_m2(building)
-        assert gross_area == pytest.approx(21.8)
-
-    def test_area_with_segments(self):
-        """Test area with segmented sides (mixed construction types)."""
-        from src.models import AdjacentSegment
-
-        external_wall = Construction(
-            name="External Wall", element_type=ConstructionType.EXTERNAL_WALL, u_value_w_m2k=0.24, thickness_m=0.36
-        )
-        internal_wall = Construction(
-            name="Internal Wall", element_type=ConstructionType.INTERNAL_WALL, u_value_w_m2k=0.5, thickness_m=0.12
-        )
-        no_wall = Construction(
-            name="No Wall", element_type=ConstructionType.INTERNAL_WALL, u_value_w_m2k=0.5, thickness_m=0.0
-        )
-        building = Building(name="Test Building", construction_catalog=[external_wall, internal_wall, no_wall])
-
-        # Area with left side split into two segments: 3m with internal wall, 1m with no wall (internal connection)
-        area = Area(
-            length_m=5.0,
-            width_m=4.0,
-            left_segments=[
-                AdjacentSegment(length_m=3.0, adjacent_name="Internal Wall"),  # 3m * 0.06 = 0.18
-                AdjacentSegment(length_m=1.0, adjacent_name="No Wall"),  # 1m * 0.0 = 0.0
-            ],
-            right_adjacent_name="External Wall",  # 0.36
-            top_adjacent_name="External Wall",  # 0.36
-            bottom_adjacent_name="No Wall",  # 0.0
-        )
-
-        # Left weighted thickness = (3.0 * 0.06 + 1.0 * 0.0) / 4.0 = 0.18 / 4.0 = 0.045
-        # Gross length = 5.0 + 0.36 + 0.0 = 5.36
-        # Gross width = 4.0 + 0.045 + 0.36 = 4.405
-        # Gross area = 5.36 * 4.405 = 23.6108
-        gross_area = area.gross_area_m2(building)
-        assert gross_area == pytest.approx(23.6108)
-
-    def test_area_segments_length_mismatch_fails(self):
-        """Test that segments must sum to the expected side length."""
-        from src.models import AdjacentSegment
-
-        Construction(
-            name="Internal Wall", element_type=ConstructionType.INTERNAL_WALL, u_value_w_m2k=0.5, thickness_m=0.12
-        )
-        Construction(name="No Wall", element_type=ConstructionType.INTERNAL_WALL, u_value_w_m2k=0.5, thickness_m=0.0)
-
-        # Segments sum to 3.5m but width_m is 4.0m
-        with pytest.raises(ValueError) as exc_info:
-            Area(
-                length_m=5.0,
-                width_m=4.0,
-                left_segments=[
-                    AdjacentSegment(length_m=2.0, adjacent_name="Internal Wall"),
-                    AdjacentSegment(length_m=1.5, adjacent_name="No Wall"),
-                ],
-                right_adjacent_name="Internal Wall",
-                top_adjacent_name="Internal Wall",
-                bottom_adjacent_name="No Wall",
-            )
-        assert "Sum of segment lengths" in str(exc_info.value)
-
-    def test_area_missing_adjacent_definition_fails(self):
-        """Test that each side must have either adjacent_name or segments."""
-
-        # Missing left_adjacent_name and no left_segments
-        with pytest.raises(ValueError) as exc_info:
-            Area(
-                length_m=5.0,
-                width_m=4.0,
-                right_adjacent_name="Internal Wall",
-                top_adjacent_name="Internal Wall",
-                bottom_adjacent_name="Internal Wall",
-            )
-        assert "must have either adjacent_name or segments defined" in str(exc_info.value)
 
 
 class TestWall:
@@ -726,7 +575,7 @@ class TestRoom:
         assert gross_height == 2.5
 
     def test_room_gross_floor_area(self):
-        """Test Room.gross_floor_area_m2() calculation."""
+        """Test Room.gross_floor_area_m2() calculation mit wandbasierter Berechnung (Option C)."""
         external_wall = Construction(
             name="External Wall", element_type=ConstructionType.EXTERNAL_WALL, u_value_w_m2k=0.24, thickness_m=0.36
         )
@@ -734,7 +583,7 @@ class TestRoom:
             name="Internal Wall", element_type=ConstructionType.INTERNAL_WALL, u_value_w_m2k=0.5, thickness_m=0.12
         )
         floor_construction = Construction(
-            name="Floor", element_type=ConstructionType.FLOOR, u_value_w_m2k=0.3, thickness_m=0.25
+            name="Floor", element_type=ConstructionType.FLOOR, u_value_w_m2k=0.3, thickness_m=0.15
         )
         building = Building(
             name="Test Building", construction_catalog=[external_wall, internal_wall, floor_construction]
@@ -743,57 +592,113 @@ class TestRoom:
         area = Area(
             length_m=5.0,
             width_m=4.0,
-            left_adjacent_name="External Wall",
-            right_adjacent_name="Internal Wall",
-            top_adjacent_name="External Wall",
-            bottom_adjacent_name="Internal Wall",
         )
         floor_elem = Element(type=ElementType.FLOOR, name="Floor", construction_name="Floor")
-        room = Room(name="Test Room", areas=[area], net_height_m=2.5, floor=floor_elem)
 
-        # Gross length = 5.0 + 0.36 (external top) + 0.06 (internal bottom half) = 5.42
-        # Gross width = 4.0 + 0.36 (external left) + 0.06 (internal right half) = 4.42
-        # Gross area = 5.42 * 4.42 = 23.9564
+        # Raum mit 4 Wänden (rechteckig)
+        room = Room(
+            name="Test Room",
+            areas=[area],
+            net_height_m=2.5,
+            floor=floor_elem,
+            walls=[
+                Wall(
+                    orientation="Nord",
+                    net_length_m=5.0,
+                    construction_name="External Wall",
+                    left_wall_name="External Wall",
+                    right_wall_name="External Wall",
+                ),
+                Wall(
+                    orientation="Süd",
+                    net_length_m=5.0,
+                    construction_name="Internal Wall",
+                    left_wall_name="Internal Wall",
+                    right_wall_name="Internal Wall",
+                ),
+                Wall(
+                    orientation="Ost",
+                    net_length_m=4.0,
+                    construction_name="External Wall",
+                    left_wall_name="Internal Wall",
+                    right_wall_name="External Wall",
+                ),
+                Wall(
+                    orientation="West",
+                    net_length_m=4.0,
+                    construction_name="Internal Wall",
+                    left_wall_name="External Wall",
+                    right_wall_name="Internal Wall",
+                ),
+            ]
+        )
+
+        # Nettofläche = 5.0 * 4.0 = 20.0 m²
+        # Wandstreifen-Berechnung (Option C):
+        # Nord: (5.0 + 0.36 + 0.36) * 0.15 = 5.72 * 0.15 = 0.858 m²
+        # Süd:  (5.0 + 0.06 + 0.06) * 0.15 = 5.12 * 0.15 = 0.768 m²
+        # Ost:  (4.0 + 0.06 + 0.36) * 0.15 = 4.42 * 0.15 = 0.663 m²
+        # West: (4.0 + 0.36 + 0.06) * 0.15 = 4.42 * 0.15 = 0.663 m²
+        # Summe Streifen = 2.952 m²
+        # Bruttofläche = 20.0 + 2.952 = 22.952 m²
         gross_floor = room.gross_floor_area_m2(building)
-        assert gross_floor == pytest.approx(23.9564)
+        assert gross_floor == pytest.approx(22.952)
 
     def test_room_gross_ceiling_area(self):
-        """Test Room.gross_ceiling_area_m2() calculation."""
+        """Test Room.gross_ceiling_area_m2() calculation mit wandbasierter Berechnung (Option C)."""
         external_wall = Construction(
             name="External Wall", element_type=ConstructionType.EXTERNAL_WALL, u_value_w_m2k=0.24, thickness_m=0.36
         )
         ceiling_construction = Construction(
             name="Ceiling", element_type=ConstructionType.CEILING, u_value_w_m2k=0.2, thickness_m=0.20
         )
-        no_wall = Construction(
-            name="No Wall", element_type=ConstructionType.INTERNAL_WALL, u_value_w_m2k=0.5, thickness_m=0.0
-        )
-        building = Building(name="Test Building", construction_catalog=[external_wall, ceiling_construction, no_wall])
+        building = Building(name="Test Building", construction_catalog=[external_wall, ceiling_construction])
 
+        # L-förmiger Raum: zwei Areas
         area1 = Area(
             length_m=5.0,
             width_m=4.0,
-            left_adjacent_name="External Wall",
-            right_adjacent_name="External Wall",
-            top_adjacent_name="External Wall",
-            bottom_adjacent_name="External Wall",
         )
         area2 = Area(
             length_m=2.0,
             width_m=3.0,
-            left_adjacent_name="No Wall",
-            right_adjacent_name="No Wall",
-            top_adjacent_name="No Wall",
-            bottom_adjacent_name="No Wall",
         )
         ceiling_elem = Element(type=ElementType.CEILING, name="Ceiling", construction_name="Ceiling")
-        room = Room(name="L-Shaped Room", areas=[area1, area2], net_height_m=2.5, ceiling=ceiling_elem)
 
-        # Area 1: (5.0 + 0.72) * (4.0 + 0.72) = 5.72 * 4.72 = 26.9984
-        # Area 2: 2.0 * 3.0 = 6.0
-        # Total = 32.9984
+        # Raum mit 6 Wänden (L-Form)
+        room = Room(
+            name="L-Shaped Room",
+            areas=[area1, area2],
+            net_height_m=2.5,
+            ceiling=ceiling_elem,
+            walls=[
+                Wall(orientation="Nord", net_length_m=5.0, construction_name="External Wall",
+                     left_wall_name="External Wall", right_wall_name="External Wall"),
+                Wall(orientation="Ost 1", net_length_m=4.0, construction_name="External Wall",
+                     left_wall_name="External Wall", right_wall_name="External Wall"),
+                Wall(orientation="Süd 1", net_length_m=3.0, construction_name="External Wall",
+                     left_wall_name="External Wall", right_wall_name="External Wall"),
+                Wall(orientation="Ost 2", net_length_m=3.0, construction_name="External Wall",
+                     left_wall_name="External Wall", right_wall_name="External Wall"),
+                Wall(orientation="Süd 2", net_length_m=2.0, construction_name="External Wall",
+                     left_wall_name="External Wall", right_wall_name="External Wall"),
+                Wall(orientation="West", net_length_m=7.0, construction_name="External Wall",
+                     left_wall_name="External Wall", right_wall_name="External Wall"),
+            ]
+        )
+
+        # Nettofläche = (5.0 * 4.0) + (2.0 * 3.0) = 20.0 + 6.0 = 26.0 m²
+        # Wandstreifen-Berechnung (Option C):
+        # Nord:  (5.0 + 0.36 + 0.36) * 0.20 = 1.144 m²
+        # Ost1:  (4.0 + 0.36 + 0.36) * 0.20 = 0.944 m²
+        # Süd1:  (3.0 + 0.36 + 0.36) * 0.20 = 0.744 m²
+        # Ost2:  (3.0 + 0.36 + 0.36) * 0.20 = 0.744 m²
+        # Süd2:  (2.0 + 0.36 + 0.36) * 0.20 = 0.544 m²
+        # West:  (7.0 + 0.36 + 0.36) * 0.20 = 1.544 m²
+        # Summe Streifen = 5.664 m²
+        # Bruttofläche = 26.0 + 5.664 = 31.664 m²
         gross_ceiling = room.gross_ceiling_area_m2(building)
-        assert gross_ceiling == pytest.approx(32.9984)
+        assert gross_ceiling == pytest.approx(31.664)
 
 
 class TestBuilding:
