@@ -1,6 +1,7 @@
 """Tab für die Räume."""
 
 import streamlit as st
+import pandas as pd
 from typing import cast
 from src.din12831.models import Room, Element, Ventilation, Area, ConstructionType, Wall, ElementType, Temperature
 from src.din12831.calc_heat_load import calc_room_heat_load
@@ -260,36 +261,27 @@ def render_room_heat_loads(room: Room, room_idx: int) -> None:
             with st.expander("📋 Details nach Bauteilen", expanded=False):
                 st.write("**Transmissionswärmeverluste der einzelnen Bauteile:**")
 
-                # Überschriftenzeile
-                header_cols = st.columns([3, 1, 1, 1, 1, 1.5])
-                with header_cols[0]:
-                    st.write("**Bauteil**")
-                with header_cols[1]:
-                    st.write("**Fläche [m²]**")
-                with header_cols[2]:
-                    st.write("**U-Wert [W/m²K]**")
-                with header_cols[3]:
-                    st.write("**U-Wert korr. [W/m²K]**")
-                with header_cols[4]:
-                    st.write("**ΔT [K]**")
-                with header_cols[5]:
-                    st.write("**Wärmeverlust [W]**")
-
-                # Erstelle eine Tabelle mit den Wärmeverlusten
+                # Erstelle DataFrame für Bauteile
+                element_data = []
                 for element in result.element_transmissions:
-                    cols = st.columns([3, 1, 1, 1, 1, 1.5])
-                    with cols[0]:
-                        st.write(f"{element.element_name}")
-                    with cols[1]:
-                        st.write(f"{element.area_m2:.2f}")
-                    with cols[2]:
-                        st.write(f"{element.u_value_w_m2k:.2f}")
-                    with cols[3]:
-                        st.write(f"{element.u_value_corrected_w_m2k:.2f}")
-                    with cols[4]:
-                        st.write(f"{element.delta_temp_k:.1f}")
-                    with cols[5]:
-                        st.write(f"**{element.transmission_w:.0f}**")
+                    element_data.append({
+                        "Bauteil": element.element_name,
+                        "Fläche [m²]": f"{element.area_m2:.2f}",
+                        "U-Wert [W/(m²·K)]": f"{element.u_value_w_m2k:.2f}",
+                        "U-Wert korr. [W/(m²·K)]": f"{element.u_value_corrected_w_m2k:.2f}",
+                        "ΔT [K]": f"{element.delta_temp_k:.1f}",
+                        "Wärmeverlust [W]": f"{element.transmission_w:.0f}"
+                    })
+
+                element_df = pd.DataFrame(element_data)
+                st.dataframe(
+                    element_df,
+                    width='stretch',
+                    hide_index=True,
+                    column_config={
+                        "U-Wert korr. [W/(m²·K)]": st.column_config.TextColumn("U-Wert korr. [W/(m²·K)]", help="U-Wert mit Wärmebrückenzuschlag")
+                    }
+                )
         st.divider()
 
     except Exception as e:

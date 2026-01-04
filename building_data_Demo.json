@@ -3,7 +3,7 @@
   "temperature_catalog": [
     {
       "name": "Außen",
-      "value_celsius": -8.5
+      "value_celsius": -9.5
     },
     {
       "name": "Bad",
@@ -86,7 +86,7 @@
       "thickness_m": 0.0
     }
   ],
-  "u_value_correction_factor": 0.05,
+  "thermal_bridge_surcharge": 0.05,
   "rooms": [
     {
       "name": "Arbeitszimmer",
