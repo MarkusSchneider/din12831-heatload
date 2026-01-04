@@ -290,7 +290,7 @@ class TestCalcFloorCeilingHeatLoad:
 
         assert len(result) == 2
 
-        # Bruttofläche mit Option C:
+        # Bruttoflächenberechnung:
         # Nettofläche = 5.0 * 4.0 = 20.0 m²
         # Wandflächenstreifen = Nettolänge * Bodendicke = 5.0 * 0.15 = 0.75 m² (nur Nord-Wand definiert)
         # ABER: Wir haben left_wall und right_wall beide "Außenwand Standard" (0.36m)
