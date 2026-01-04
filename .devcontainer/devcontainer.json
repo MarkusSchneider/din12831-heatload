@@ -15,7 +15,8 @@
       },
       "extensions": [
         "ms-python.python",
-        "ms-python.vscode-pylance"
+        "ms-python.vscode-pylance",
+        "charliermarsh.ruff"
       ]
     }
   },
@@ -24,7 +25,9 @@
     "VIRTUAL_ENV": "${containerWorkspaceFolder}/.venv",
     "PATH": "${containerWorkspaceFolder}/.venv/bin:${containerEnv:PATH}"
   },
-  "forwardPorts": [8501],
+  "forwardPorts": [
+    8501
+  ],
   "portsAttributes": {
     "8501": {
       "label": "Streamlit",
