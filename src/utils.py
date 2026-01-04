@@ -3,7 +3,7 @@
 import streamlit as st
 import json
 from pathlib import Path
-from src.din12831.models import Building, Construction, ConstructionType
+from src.models import Building, Construction, ConstructionType
 
 DEFAULT_BUILDING_NAME = "Mein Gebäude"
 

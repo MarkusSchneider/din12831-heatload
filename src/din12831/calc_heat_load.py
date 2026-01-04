@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from .models import Building, Room, ConstructionType
+from src.models import Building, Room, ConstructionType
 
 
 @dataclass(frozen=True)

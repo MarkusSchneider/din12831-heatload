@@ -4,7 +4,7 @@ import streamlit as st
 import pandas as pd
 from typing import List, Tuple, Optional
 from src.din12831.calc_heat_load import calc_building_heat_load, RoomHeatLoadResult
-from src.din12831.models import Building
+from src.models import Building
 
 
 def _validate_building_data(building: Building) -> Optional[str]:

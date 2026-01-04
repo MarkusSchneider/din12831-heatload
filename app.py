@@ -3,13 +3,13 @@
 import streamlit as st
 import json
 from pathlib import Path
-from utils import load_building, save_building
-from tab_catalog import render_catalog_tab
-from tab_temperatures import render_temperatures_tab
-from tab_rooms import render_rooms_tab
-from tab_report import render_report_tab
-from tab_debug import render_debug_tab
-from src.din12831.models import Building
+from src.utils import load_building, save_building
+from src.ui.tab_catalog import render_catalog_tab
+from src.ui.tab_temperatures import render_temperatures_tab
+from src.ui.tab_rooms import render_rooms_tab
+from src.ui.tab_report import render_report_tab
+from src.ui.tab_debug import render_debug_tab
+from src.models import Building
 
 st.set_page_config(page_title="DIN EN 12831 Heizlast", layout="wide")
 

@@ -11,7 +11,7 @@ from src.din12831.calc_heat_load import (
     calc_room_heat_load,
     calc_building_heat_load,
 )
-from src.din12831.models import (
+from src.models import (
     Building,
     Room,
     Construction,

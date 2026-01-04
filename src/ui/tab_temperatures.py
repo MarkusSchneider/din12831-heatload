@@ -1,8 +1,8 @@
 """Tab für die Temperaturverwaltung."""
 
 import streamlit as st
-from src.din12831.models import Temperature
-from utils import save_building
+from src.models import Temperature
+from src.utils import save_building
 
 
 def render_temperature_add_form() -> None:

@@ -3,9 +3,9 @@
 import streamlit as st
 import pandas as pd
 from typing import cast, Optional
-from src.din12831.models import Room, Element, Ventilation, Area, ConstructionType, Wall, ElementType, Temperature
+from src.models import Room, Element, Ventilation, Area, ConstructionType, Wall, ElementType, Temperature
 from src.din12831.calc_heat_load import calc_room_heat_load
-from utils import save_building, get_catalog_by_type
+from src.utils import save_building, get_catalog_by_type
 
 
 # ============================================================================

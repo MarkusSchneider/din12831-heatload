@@ -1,8 +1,8 @@
 """Tab für den Bauteilkatalog."""
 
 import streamlit as st
-from src.din12831.models import Construction, ConstructionType
-from utils import save_building
+from src.models import Construction, ConstructionType
+from src.utils import save_building
 
 
 def render_catalog_add_form() -> None:
