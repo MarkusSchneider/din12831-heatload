@@ -28,8 +28,6 @@ a = Analysis(
     datas=[
         # Main app script
         ('app.py', '.'),
-        # JSON-Datei mit einpacken
-        ('building_data.json', '.'),
         # Source package
         ('src/', 'src/'),
         # Streamlit-Assets und Metadaten
