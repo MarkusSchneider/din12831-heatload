@@ -526,28 +526,107 @@ def render_room_heat_loads(room: Room, room_idx: int) -> None:
 # Raum-Informationen
 # ============================================================================
 
-def render_room_info(room: Room, room_idx: int) -> None:
-    """Zeigt Raum-Informationen und Löschen-Button."""
-    st.subheader("Raum")
-    col1, col2, col3 = st.columns([2, 2, 1])
+def render_room_update_form(room: Room, room_idx: int) -> None:
+    """Zeigt Formular zum Aktualisieren der Raum-Grunddaten."""
+    with st.form(key=f"update_room_form_{room_idx}"):
+        st.write("**Raum-Grunddaten bearbeiten:**")
 
-    with col1:
-        st.write(f"**Fläche:** {room.floor_area_m2:.2f} m²")
-        st.write(f"**Volumen:** {room.volume_m3:.2f} m³")
-        st.write(f"**Nettohöhe (Innenmaß):** {room.net_height_m:.2f} m")
+        col1, col2 = st.columns(2)
 
-    with col2:
-        room_temp = st.session_state.building.get_temperature_by_name(room.room_temperature_name)
-        room_temp_text = format_temperature(room_temp)
-        st.write(f"**Raumtemperatur:** {room_temp_text}")
-        st.write(f"**Luftwechsel:** {room.ventilation.air_change_1_h} 1/h")
-        st.write(f"**Bruttohöhe (Außenmaß):** {room.gross_height_m(st.session_state.building):.2f} m")
+        with col1:
+            updated_name = st.text_input(
+                "Raumname",
+                value=room.name,
+                key=f"update_room_name_{room_idx}"
+            )
 
-    with col3:
-        if st.button("🗑️ Löschen", key=f"delete_room_{room_idx}"):
-            st.session_state.building.rooms.pop(room_idx)
+            updated_height = st.number_input(
+                "Höhe (m)",
+                min_value=0.1,
+                value=room.net_height_m,
+                step=0.1,
+                key=f"update_room_height_{room_idx}"
+            )
+
+        with col2:
+            temp_options = get_temperature_options()
+            current_temp_idx = 0
+            if room.room_temperature_name and room.room_temperature_name in temp_options:
+                current_temp_idx = list(temp_options.keys()).index(room.room_temperature_name)
+
+            updated_temp_name = st.selectbox(
+                "Raumtemperatur",
+                options=list(temp_options.keys()),
+                index=current_temp_idx,
+                format_func=lambda name: f"{name} ({temp_options[name].value_celsius:.1f} °C)",
+                key=f"update_room_temp_{room_idx}"
+            )
+
+            updated_air_change = st.number_input(
+                "Luftwechsel (1/h)",
+                min_value=0.0,
+                value=room.ventilation.air_change_1_h,
+                step=0.1,
+                key=f"update_room_air_change_{room_idx}"
+            )
+
+        button_cols = st.columns([9, 1])
+        with button_cols[1]:
+            submit = st.form_submit_button("💾 Speichern", type="primary")
+
+        if submit:
+            if not updated_name or updated_name.strip() == "":
+                st.error("Bitte geben Sie einen Raumnamen ein.")
+                return
+
+            room.name = updated_name
+            room.net_height_m = updated_height
+            room.room_temperature_name = updated_temp_name
+            room.ventilation.air_change_1_h = updated_air_change
+
+            st.session_state[f"show_room_update_form_{room_idx}"] = False
             save_building(st.session_state.building)
+            st.success(f"Raum '{updated_name}' wurde aktualisiert!")
             st.rerun()
+
+
+def render_room_info(room: Room, room_idx: int) -> None:
+    """Zeigt Raum-Informationen mit Bearbeiten- und Löschen-Button."""
+    # Header mit Buttons
+    header_cols = st.columns([10, 1])
+    with header_cols[0]:
+        st.subheader("Raum")
+    with header_cols[1]:
+        update_form_key = f"show_room_update_form_{room_idx}"
+        show_update = st.session_state.get(update_form_key, False)
+        btn_cols = st.columns(2)
+        with btn_cols[0]:
+            if st.button("✏️" if not show_update else "✖️", key=f"toggle_room_update_{room_idx}"):
+                st.session_state[update_form_key] = not show_update
+                st.rerun()
+        with btn_cols[1]:
+            if st.button("🗑️", key=f"delete_room_{room_idx}"):
+                st.session_state.building.rooms.pop(room_idx)
+                save_building(st.session_state.building)
+                st.rerun()
+
+    # Update-Formular oder Info anzeigen
+    if st.session_state.get(update_form_key, False):
+        render_room_update_form(room, room_idx)
+    else:
+        col1, col2 = st.columns([2, 2])
+
+        with col1:
+            st.write(f"**Fläche:** {room.floor_area_m2:.2f} m²")
+            st.write(f"**Volumen:** {room.volume_m3:.2f} m³")
+            st.write(f"**Nettohöhe (Innenmaß):** {room.net_height_m:.2f} m")
+
+        with col2:
+            room_temp = st.session_state.building.get_temperature_by_name(room.room_temperature_name)
+            room_temp_text = format_temperature(room_temp)
+            st.write(f"**Raumtemperatur:** {room_temp_text}")
+            st.write(f"**Luftwechsel:** {room.ventilation.air_change_1_h} 1/h")
+            st.write(f"**Bruttohöhe (Außenmaß):** {room.gross_height_m(st.session_state.building):.2f} m")
 
 
 # ============================================================================
@@ -573,15 +652,15 @@ def render_area_info(area: Area, area_idx: int, total_areas: int) -> None:
 
         # Angrenzende Bauteile
         st.write("**Angrenzende Bauteile:**")
-        adjacent_info = [
-            f"⬅️ Links: {area.left_adjacent_name}",
-            f"⬆️ Oben: {area.top_adjacent_name}",
-            f"➡️ Rechts: {area.right_adjacent_name}",
-            f"⬇️ Unten: {area.bottom_adjacent_name}"
-        ]
-
-        for info in adjacent_info:
-            st.write(f"  {info}")
+        area_cols = st.columns([1, 1, 1, 1])
+        with area_cols[0]:
+            st.write(f"⬅️ Links: {area.left_adjacent_name}")
+        with area_cols[1]:
+            st.write(f"⬆️ Oben: {area.top_adjacent_name}")
+        with area_cols[2]:
+            st.write(f"➡️ Rechts: {area.right_adjacent_name}")
+        with area_cols[3]:
+            st.write(f"⬇️ Unten: {area.bottom_adjacent_name}")
 
         # Dummy else block for consistency
         if False:
@@ -629,44 +708,164 @@ def render_wall_header_and_toggle(room_idx: int) -> bool:
     return show_form
 
 
+def render_wall_update_form(room: Room, room_idx: int, wall: Wall, wall_idx: int) -> None:
+    """Zeigt Formular zum Aktualisieren einer Wand."""
+    with st.form(key=f"update_wall_form_{room_idx}_{wall_idx}"):
+        st.write("**Wand bearbeiten:**")
+
+        wall_options = get_wall_catalog()
+        wall_by_name = {c.name: c for c in wall_options}
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            updated_orientation = st.text_input(
+                "Richtung / Bezeichnung",
+                value=wall.orientation,
+                key=f"update_wall_orientation_{room_idx}_{wall_idx}"
+            )
+
+            updated_length = st.number_input(
+                "Länge (m)",
+                min_value=0.1,
+                value=wall.net_length_m,
+                step=0.1,
+                key=f"update_wall_length_{room_idx}_{wall_idx}"
+            )
+
+        with col2:
+            current_constr_idx = list(wall_by_name.keys()).index(wall.construction_name) if wall.construction_name in wall_by_name else 0
+            updated_construction = st.selectbox(
+                "Aufbau",
+                options=list(wall_by_name.keys()),
+                index=current_constr_idx,
+                key=f"update_wall_constr_{room_idx}_{wall_idx}"
+            )
+
+            selected_construction = wall_by_name[updated_construction]
+            updated_adj_temp = None
+
+            if selected_construction.element_type == ConstructionType.INTERNAL_WALL:
+                temp_options = get_temperature_options()
+                current_temp_idx = 0
+                if wall.adjacent_room_temperature_name and wall.adjacent_room_temperature_name in temp_options:
+                    current_temp_idx = list(temp_options.keys()).index(wall.adjacent_room_temperature_name)
+
+                updated_adj_temp = st.selectbox(
+                    "Temperatur angrenzender Raum",
+                    options=list(temp_options.keys()),
+                    index=current_temp_idx,
+                    format_func=lambda name: f"{name} ({temp_options[name].value_celsius:.1f} °C)",
+                    key=f"update_wall_adj_temp_{room_idx}_{wall_idx}"
+                )
+
+        st.write("**Angrenzende Wände:**")
+        wall_catalog_names = ["Keine"] + [c.name for c in wall_options]
+
+        neighbor_cols = st.columns(2)
+        with neighbor_cols[0]:
+            left_idx = wall_catalog_names.index(wall.left_wall_name) if wall.left_wall_name in wall_catalog_names else 0
+            updated_left_wall = st.selectbox(
+                "Nachbarwand Links",
+                options=wall_catalog_names,
+                index=left_idx,
+                key=f"update_wall_left_{room_idx}_{wall_idx}"
+            )
+
+        with neighbor_cols[1]:
+            right_idx = wall_catalog_names.index(wall.right_wall_name) if wall.right_wall_name in wall_catalog_names else 0
+            updated_right_wall = st.selectbox(
+                "Nachbarwand Rechts",
+                options=wall_catalog_names,
+                index=right_idx,
+                key=f"update_wall_right_{room_idx}_{wall_idx}"
+            )
+
+        button_cols = st.columns([9, 1])
+        with button_cols[1]:
+            submit = st.form_submit_button("💾 Speichern", type="primary")
+
+        if submit:
+            error = validate_wall_inputs(
+                updated_orientation,
+                updated_length,
+                updated_left_wall,
+                updated_right_wall,
+                selected_construction,
+                updated_adj_temp
+            )
+
+            if error:
+                st.error(error)
+                return
+
+            wall.orientation = updated_orientation
+            wall.net_length_m = updated_length
+            wall.construction_name = updated_construction
+            wall.left_wall_name = updated_left_wall
+            wall.right_wall_name = updated_right_wall
+            wall.adjacent_room_temperature_name = updated_adj_temp
+
+            st.session_state[f"show_wall_update_form_{room_idx}_{wall_idx}"] = False
+            st.session_state[f"room_{room_idx}_expanded"] = True
+            save_building(st.session_state.building)
+            st.success(f"Wand '{updated_orientation}' wurde aktualisiert!")
+            st.rerun()
+
+
 def render_wall_item(room: Room, room_idx: int, wall: Wall, wall_idx: int) -> None:
     """Zeigt eine einzelne Wand mit Details."""
     with st.expander(f"🧱 {wall.orientation} ({wall.net_length_m:.2f} m × {room.net_height_m:.2f} m)", expanded=False):
-        cols = st.columns([2, 2, 1])
+        # Header mit Buttons
+        update_form_key = f"show_wall_update_form_{room_idx}_{wall_idx}"
+        show_update = st.session_state.get(update_form_key, False)
 
-        with cols[0]:
-            wall_construction = st.session_state.building.get_construction_by_name(wall.construction_name)
-            st.write(f"**Konstruktion:** {wall.construction_name}")
+        header_cols = st.columns([10, 1])
+        with header_cols[1]:
+            btn_cols = st.columns(2)
+            with btn_cols[0]:
+                if st.button("✏️" if not show_update else "✖️", key=f"toggle_wall_update_{room_idx}_{wall_idx}"):
+                    st.session_state[update_form_key] = not show_update
+                    st.rerun()
+            with btn_cols[1]:
+                if st.button("🗑️", key=f"delete_wall_{room_idx}_{wall_idx}"):
+                    room.walls.pop(wall_idx)
+                    st.session_state[f"room_{room_idx}_expanded"] = True
+                    save_building(st.session_state.building)
+                    st.rerun()
 
-            # Zeige Temperatur bei Innenwänden
-            if wall_construction and wall_construction.element_type == ConstructionType.INTERNAL_WALL:
-                if wall.adjacent_room_temperature_name:
-                    adj_temp = st.session_state.building.get_temperature_by_name(wall.adjacent_room_temperature_name)
-                    if adj_temp:
-                        st.write(f"**Angrenzender Raum:** {format_temperature(adj_temp)}")
+        # Update-Formular oder Info anzeigen
+        if show_update:
+            render_wall_update_form(room, room_idx, wall, wall_idx)
+        else:
+            cols = st.columns([2, 2, 1])
 
-        with cols[1]:
-            if wall_construction:
-                st.write(f"**U-Wert:** {wall_construction.u_value_w_m2k:.2f} W/m²K")
+            with cols[0]:
+                wall_construction = st.session_state.building.get_construction_by_name(wall.construction_name)
+                st.write(f"**Konstruktion:** {wall.construction_name}")
 
-        with cols[2]:
-            if st.button("🗑️", key=f"delete_wall_{room_idx}_{wall_idx}"):
-                room.walls.pop(wall_idx)
-                st.session_state[f"room_{room_idx}_expanded"] = True
-                save_building(st.session_state.building)
-                st.rerun()
+                # Zeige Temperatur bei Innenwänden
+                if wall_construction and wall_construction.element_type == ConstructionType.INTERNAL_WALL:
+                    if wall.adjacent_room_temperature_name:
+                        adj_temp = st.session_state.building.get_temperature_by_name(wall.adjacent_room_temperature_name)
+                        if adj_temp:
+                            st.write(f"**Angrenzender Raum:** {format_temperature(adj_temp)}")
 
-        # Längen-Anzeige
-        length_cols = st.columns([2, 2, 1])
-        with length_cols[0]:
-            st.write(f"**Nettolänge (Innenmaß):** {wall.net_length_m:.2f} m")
-        with length_cols[1]:
-            st.write(f"**Bruttolänge (Außenmaß):** {wall.gross_length_m(st.session_state.building):.2f} m")
+            with cols[1]:
+                if wall_construction:
+                    st.write(f"**U-Wert:** {wall_construction.u_value_w_m2k:.2f} W/m²K")
 
-        # Nachbarwände
-        render_neighbor_walls(wall)
+            # Längen-Anzeige
+            length_cols = st.columns([2, 2, 1])
+            with length_cols[0]:
+                st.write(f"**Nettolänge (Innenmaß):** {wall.net_length_m:.2f} m")
+            with length_cols[1]:
+                st.write(f"**Bruttolänge (Außenmaß):** {wall.gross_length_m(st.session_state.building):.2f} m")
 
-        # Fenster/Türen
+            # Nachbarwände
+            render_neighbor_walls(wall)
+
+        # Fenster/Türen (immer anzeigen)
         st.divider()
         render_wall_openings(room, room_idx, wall, wall_idx)
 
@@ -881,7 +1080,7 @@ def render_wall_add_form(room: Room, room_idx: int, wall_options: list) -> None:
         left_wall_name, right_wall_name = render_wall_neighbor_selectors(room_idx, wall_options)
 
         # Button unten rechts
-        button_cols = st.columns([6, 1])
+        button_cols = st.columns([9, 1])
         with button_cols[1]:
             add_wall = st.button("➕ Hinzufügen", type="primary", key=f"add_wall_btn_{room_idx}")
 
@@ -958,48 +1157,198 @@ def render_opening_header_and_toggle(room_idx: int, wall_idx: int) -> bool:
     return show_form
 
 
+def render_window_update_form(wall: Wall, room_idx: int, wall_idx: int, win_idx: int, window: Element) -> None:
+    """Zeigt Formular zum Aktualisieren eines Fensters."""
+    with st.form(key=f"update_window_form_{room_idx}_{wall_idx}_{win_idx}"):
+        window_options = get_catalog_by_type(ConstructionType.WINDOW)
+        window_by_name = {w.name: w for w in window_options}
+
+        cols = st.columns([2, 1.5, 1.5, 2])
+
+        with cols[0]:
+            updated_name = st.text_input(
+                "Name",
+                value=window.name,
+                key=f"update_window_name_{room_idx}_{wall_idx}_{win_idx}"
+            )
+
+        with cols[1]:
+            updated_width = st.number_input(
+                "Breite (m)",
+                min_value=0.1,
+                value=window.width_m or 1.2,
+                step=0.1,
+                key=f"update_window_width_{room_idx}_{wall_idx}_{win_idx}"
+            )
+
+        with cols[2]:
+            updated_height = st.number_input(
+                "Höhe (m)",
+                min_value=0.1,
+                value=window.height_m or 1.5,
+                step=0.1,
+                key=f"update_window_height_{room_idx}_{wall_idx}_{win_idx}"
+            )
+
+        with cols[3]:
+            current_constr_idx = list(window_by_name.keys()).index(window.construction_name) if window.construction_name in window_by_name else 0
+            updated_construction = st.selectbox(
+                "Konstruktion",
+                options=list(window_by_name.keys()),
+                index=current_constr_idx,
+                key=f"update_window_constr_{room_idx}_{wall_idx}_{win_idx}"
+            )
+
+        button_cols = st.columns([9, 1])
+        with button_cols[1]:
+            submit = st.form_submit_button("💾", type="primary")
+
+        if submit:
+            if not updated_name or updated_name.strip() == "":
+                st.error("Bitte geben Sie einen Namen ein.")
+                return
+
+            window.name = updated_name
+            window.width_m = updated_width
+            window.height_m = updated_height
+            window.construction_name = updated_construction
+
+            st.session_state[f"show_window_update_form_{room_idx}_{wall_idx}_{win_idx}"] = False
+            st.session_state[f"room_{room_idx}_expanded"] = True
+            save_building(st.session_state.building)
+            st.success(f"Fenster '{updated_name}' wurde aktualisiert!")
+            st.rerun()
+
+
+def render_door_update_form(wall: Wall, room_idx: int, wall_idx: int, door_idx: int, door: Element) -> None:
+    """Zeigt Formular zum Aktualisieren einer Tür."""
+    with st.form(key=f"update_door_form_{room_idx}_{wall_idx}_{door_idx}"):
+        door_options = get_catalog_by_type(ConstructionType.DOOR)
+        door_by_name = {d.name: d for d in door_options}
+
+        cols = st.columns([2, 1.5, 1.5, 2])
+
+        with cols[0]:
+            updated_name = st.text_input(
+                "Name",
+                value=door.name,
+                key=f"update_door_name_{room_idx}_{wall_idx}_{door_idx}"
+            )
+
+        with cols[1]:
+            updated_width = st.number_input(
+                "Breite (m)",
+                min_value=0.1,
+                value=door.width_m or 0.87,
+                step=0.1,
+                key=f"update_door_width_{room_idx}_{wall_idx}_{door_idx}"
+            )
+
+        with cols[2]:
+            updated_height = st.number_input(
+                "Höhe (m)",
+                min_value=0.1,
+                value=door.height_m or 2.1,
+                step=0.1,
+                key=f"update_door_height_{room_idx}_{wall_idx}_{door_idx}"
+            )
+
+        with cols[3]:
+            current_constr_idx = list(door_by_name.keys()).index(door.construction_name) if door.construction_name in door_by_name else 0
+            updated_construction = st.selectbox(
+                "Konstruktion",
+                options=list(door_by_name.keys()),
+                index=current_constr_idx,
+                key=f"update_door_constr_{room_idx}_{wall_idx}_{door_idx}"
+            )
+
+        button_cols = st.columns([9, 1])
+        with button_cols[1]:
+            submit = st.form_submit_button("💾", type="primary")
+
+        if submit:
+            if not updated_name or updated_name.strip() == "":
+                st.error("Bitte geben Sie einen Namen ein.")
+                return
+
+            door.name = updated_name
+            door.width_m = updated_width
+            door.height_m = updated_height
+            door.construction_name = updated_construction
+
+            st.session_state[f"show_door_update_form_{room_idx}_{wall_idx}_{door_idx}"] = False
+            st.session_state[f"room_{room_idx}_expanded"] = True
+            save_building(st.session_state.building)
+            st.success(f"Tür '{updated_name}' wurde aktualisiert!")
+            st.rerun()
+
+
 def render_window_list(wall: Wall, room_idx: int, wall_idx: int) -> None:
-    """Zeigt Liste der Fenster."""
+    """Zeigt Liste der Fenster mit Update-Funktion."""
     if not wall.windows:
         return
 
     st.write("*Fenster:*")
     for win_idx, window in enumerate(wall.windows):
-        cols = st.columns([3, 3, 1])
-        with cols[0]:
-            st.write(f"• {window.name}")
-        with cols[1]:
-            win_construction = st.session_state.building.get_construction_by_name(window.construction_name)
-            u_value_str = f"{win_construction.u_value_w_m2k:.2f}" if win_construction else "N/A"
-            st.write(f"{window.width_m:.2f} × {window.height_m:.2f} m = {window.area_m2:.2f} m² | U: {u_value_str} W/m²K")
-        with cols[2]:
-            if st.button("🗑️", key=f"del_win_{room_idx}_{wall_idx}_{win_idx}"):
-                wall.windows.pop(win_idx)
-                st.session_state[f"room_{room_idx}_expanded"] = True
-                save_building(st.session_state.building)
-                st.rerun()
+        update_form_key = f"show_window_update_form_{room_idx}_{wall_idx}_{win_idx}"
+        show_update = st.session_state.get(update_form_key, False)
+
+        if show_update:
+            render_window_update_form(wall, room_idx, wall_idx, win_idx, window)
+        else:
+            cols = st.columns([2, 8, 1])
+            with cols[0]:
+                st.write(f"{window.name}")
+            with cols[1]:
+                win_construction = st.session_state.building.get_construction_by_name(window.construction_name)
+                u_value_str = f"{win_construction.u_value_w_m2k:.2f}" if win_construction else "N/A"
+                st.write(f"{window.width_m:.2f} × {window.height_m:.2f} m = {window.area_m2:.2f} m² | U: {u_value_str} W/m²K")
+            with cols[2]:
+                btn_cols = st.columns(2)
+                with btn_cols[0]:
+                    if st.button("✏️", key=f"edit_win_{room_idx}_{wall_idx}_{win_idx}"):
+                        st.session_state[update_form_key] = True
+                        st.rerun()
+                with btn_cols[1]:
+                    if st.button("🗑️", key=f"del_win_{room_idx}_{wall_idx}_{win_idx}"):
+                        wall.windows.pop(win_idx)
+                        st.session_state[f"room_{room_idx}_expanded"] = True
+                        save_building(st.session_state.building)
+                        st.rerun()
 
 
 def render_door_list(wall: Wall, room_idx: int, wall_idx: int) -> None:
-    """Zeigt Liste der Türen."""
+    """Zeigt Liste der Türen mit Update-Funktion."""
     if not wall.doors:
         return
 
     st.write("*Türen:*")
     for door_idx, door in enumerate(wall.doors):
-        cols = st.columns([3, 3, 1])
-        with cols[0]:
-            st.write(f"• {door.name}")
-        with cols[1]:
-            door_construction = st.session_state.building.get_construction_by_name(door.construction_name)
-            u_value_str = f"{door_construction.u_value_w_m2k:.2f}" if door_construction else "N/A"
-            st.write(f"{door.width_m:.2f} × {door.height_m:.2f} m = {door.area_m2:.2f} m² | U: {u_value_str} W/m²K")
-        with cols[2]:
-            if st.button("🗑️", key=f"del_door_{room_idx}_{wall_idx}_{door_idx}"):
-                wall.doors.pop(door_idx)
-                st.session_state[f"room_{room_idx}_expanded"] = True
-                save_building(st.session_state.building)
-                st.rerun()
+        update_form_key = f"show_door_update_form_{room_idx}_{wall_idx}_{door_idx}"
+        show_update = st.session_state.get(update_form_key, False)
+
+        if show_update:
+            render_door_update_form(wall, room_idx, wall_idx, door_idx, door)
+        else:
+            cols = st.columns([2, 8, 1])
+            with cols[0]:
+                st.write(f"{door.name}")
+            with cols[1]:
+                door_construction = st.session_state.building.get_construction_by_name(door.construction_name)
+                u_value_str = f"{door_construction.u_value_w_m2k:.2f}" if door_construction else "N/A"
+                st.write(f"{door.width_m:.2f} × {door.height_m:.2f} m = {door.area_m2:.2f} m² | U: {u_value_str} W/m²K")
+            with cols[2]:
+                btn_cols = st.columns(2)
+                with btn_cols[0]:
+                    if st.button("✏️", key=f"edit_door_{room_idx}_{wall_idx}_{door_idx}"):
+                        st.session_state[update_form_key] = True
+                        st.rerun()
+                with btn_cols[1]:
+                    if st.button("🗑️", key=f"del_door_{room_idx}_{wall_idx}_{door_idx}"):
+                        wall.doors.pop(door_idx)
+                        st.session_state[f"room_{room_idx}_expanded"] = True
+                        save_building(st.session_state.building)
+                        st.rerun()
 
 
 def get_opening_catalog_options() -> tuple[list, dict]:
@@ -1077,7 +1426,7 @@ def render_opening_add_form(wall: Wall, room_idx: int, wall_idx: int) -> None:
                 selected_opening_constr = selected_opening_display
 
         # Button rechts ausrichten
-        button_cols = st.columns([6, 1])
+        button_cols = st.columns([9, 1])
         with button_cols[1]:
             add_opening = st.form_submit_button(
                 "➕ Hinzufügen",
