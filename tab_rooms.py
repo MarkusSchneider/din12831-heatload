@@ -71,62 +71,74 @@ def render_room_add_form() -> None:
 
             rect_ids: list[int] = st.session_state[rect_ids_key]
             for idx, rect_id in enumerate(list(rect_ids), 1):
-                st.write(f"*Fläche {idx}:*" if len(rect_ids) > 1 else "*Fläche:*")
-
-                # Dimensionen
-                c1, c2, c3 = st.columns([2, 2, 1])
-                with c1:
-                    r_len = st.number_input(
-                        f"Länge (m)",
-                        min_value=0.0,
-                        value=0.0,
-                        step=0.1,
-                        key=f"new_room_rect_{rect_id}_len",
-                    )
-                with c2:
-                    r_wid = st.number_input(
-                        f"Breite (m)",
-                        min_value=0.0,
-                        value=0.0,
-                        step=0.1,
-                        key=f"new_room_rect_{rect_id}_wid",
-                    )
-                with c3:
+                # Visuelle Darstellung als Rechteck
+                # Zeile 1: Oben (Bauteil)
+                row1 = st.columns([1, 3, 1])
+                with row1[1]:
+                    top_row = st.columns([1, 1])
+                    with top_row[0]:
+                        r_len = st.number_input(
+                            "Länge (m)",
+                            min_value=0.0,
+                            value=0.0,
+                            step=0.1,
+                            key=f"new_room_rect_{rect_id}_len",
+                        )
+                    with top_row[1]:
+                        top_wall = st.selectbox(
+                            "Konstruktion Oben",
+                            options=wall_catalog_names,
+                            key=f"new_room_rect_{rect_id}_top",
+                            help="Aufbau Wand oben vom Rechteck"
+                        )
+                with row1[2]:
                     if len(rect_ids) > 1 and st.button("🗑️", key=f"new_room_rect_{rect_id}_del"):
                         rect_ids.remove(rect_id)
                         st.session_state[rect_ids_key] = rect_ids
                         st.rerun()
 
-                # Angrenzende Wände
-                st.write("*Angrenzende Wände:*")
-                c1, c2, c3, c4 = st.columns(4)
-                with c1:
+                    # Zeile 3: Links - Rechteck-Darstellung - Rechts
+                row2 = st.columns([2, 1, 2])
+                with row2[0]:
+                    r_wid = st.number_input(
+                        "Breite (m)",
+                        min_value=0.0,
+                        value=0.0,
+                        step=0.1,
+                        key=f"new_room_rect_{rect_id}_wid",
+                    )
                     left_wall = st.selectbox(
-                        "Links",
+                        "Konstruktion Links",
                         options=wall_catalog_names,
                         key=f"new_room_rect_{rect_id}_left",
-                        help="Wand links vom Rechteck"
+                        help="Aufbau Wand links vom Rechteck"
                     )
-                with c2:
-                    top_wall = st.selectbox(
-                        "Oben",
-                        options=wall_catalog_names,
-                        key=f"new_room_rect_{rect_id}_top",
-                        help="Wand oben vom Rechteck"
+                with row2[1]:
+                    st.markdown(
+                        """
+                        <div style='text-align: center; padding: 20px; border: 2px solid #ccc; border-radius: 8px; background-color: #f0f2f6; margin-top: 24px;'>
+                            <p style='margin: 0; font-size: 24px;'>📐</p>
+                            <p style='margin: 0; font-size: 12px; color: #666;'>Rechteck</p>
+                        </div>
+                        """,
+                        unsafe_allow_html=True
                     )
-                with c3:
+                with row2[2]:
                     right_wall = st.selectbox(
-                        "Rechts",
+                        "Konstruktion Rechts",
                         options=wall_catalog_names,
                         key=f"new_room_rect_{rect_id}_right",
-                        help="Wand rechts vom Rechteck"
+                        help="AufbauWand rechts vom Rechteck"
                     )
-                with c4:
+
+                # Zeile 3: Unten (Bauteil, zentriert)
+                row3 = st.columns([2, 3, 2])
+                with row3[1]:
                     bottom_wall = st.selectbox(
-                        "Unten",
+                        "Konstruktion Unten",
                         options=wall_catalog_names,
                         key=f"new_room_rect_{rect_id}_bottom",
-                        help="Wand unten vom Rechteck"
+                        help="Aufbau Wand unten vom Rechteck"
                     )
 
                 st.divider()
@@ -184,6 +196,7 @@ def render_room_add_form() -> None:
                         "Konstruktion",
                         options=[c.name for c in floor_options],
                         key="new_room_floor_construction",
+                        help="Aufbau des Bodens"
                     )
                 else:
                     st.error("Im Bauteilkatalog fehlt mindestens eine Boden-Konstruktion.")
@@ -209,6 +222,7 @@ def render_room_add_form() -> None:
                         "Konstruktion",
                         options=[c.name for c in ceiling_options],
                         key="new_room_ceiling_construction",
+                        help="Aufbau der Decke"
                     )
                 else:
                     st.error("Im Bauteilkatalog fehlt mindestens eine Decken-Konstruktion.")
