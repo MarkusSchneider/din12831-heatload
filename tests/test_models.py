@@ -224,10 +224,6 @@ class TestTemperature:
         assert temp.name == "Living Room"
         assert temp.value_celsius == 20.0
 
-    def test_temperature_string_representation(self):
-        temp = Temperature(name="Outside", value_celsius=-10.5)
-        assert str(temp) == "Outside (-10.5 °C)"
-
     def test_temperature_negative_values(self):
         temp = Temperature(name="Cold", value_celsius=-20.0)
         assert temp.value_celsius == -20.0
@@ -318,12 +314,6 @@ class TestArea:
             width_m=4.0,
         )
         assert area.area_m2 == 20.0
-
-
-
-
-
-
 
 
 class TestWall:
@@ -454,10 +444,6 @@ class TestRoom:
         area = Area(
             length_m=5.0,
             width_m=4.0,
-            left_adjacent_name="No Wall",
-            right_adjacent_name="No Wall",
-            top_adjacent_name="No Wall",
-            bottom_adjacent_name="No Wall",
         )
         room = Room(
             name="Living Room",
@@ -473,18 +459,10 @@ class TestRoom:
         area1 = Area(
             length_m=5.0,
             width_m=4.0,
-            left_adjacent_name="No Wall",
-            right_adjacent_name="No Wall",
-            top_adjacent_name="No Wall",
-            bottom_adjacent_name="No Wall",
         )
         area2 = Area(
             length_m=2.0,
             width_m=3.0,
-            left_adjacent_name="No Wall",
-            right_adjacent_name="No Wall",
-            top_adjacent_name="No Wall",
-            bottom_adjacent_name="No Wall",
         )
         room = Room(
             name="L-Shaped Room",
@@ -507,49 +485,6 @@ class TestRoom:
         )
         assert room.ventilation.air_change_1_h == 1.0
 
-    def test_room_elements_property(self):
-        window = Element(
-            type=ElementType.WINDOW,
-            name="Window 1",
-            construction_name="Window Type A",
-            width_m=1.2,
-            height_m=1.5,
-        )
-        door = Element(
-            type=ElementType.DOOR,
-            name="Door 1",
-            construction_name="Door Type A",
-            width_m=0.9,
-            height_m=2.1,
-        )
-        floor = Element(
-            type=ElementType.FLOOR,
-            name="Floor 1",
-            construction_name="Floor Type A",
-        )
-        ceiling = Element(
-            type=ElementType.CEILING,
-            name="Ceiling 1",
-            construction_name="Ceiling Type A",
-        )
-        wall = Wall(
-            orientation="North",
-            net_length_m=5.0,
-            construction_name="External Wall 1",
-            left_wall_name="Left Wall",
-            right_wall_name="Right Wall",
-            windows=[window],
-            doors=[door],
-        )
-        room = Room(
-            name="Complete Room",
-            net_height_m=2.5,
-            walls=[wall],
-            floor=floor,
-            ceiling=ceiling,
-        )
-        elements = room.elements
-        assert len(elements) == 4  # window, door, floor, ceiling
 
     def test_room_gross_height(self):
         """Test Room.gross_height_m() with ceiling thickness."""
@@ -630,7 +565,7 @@ class TestRoom:
                     left_wall_name="External Wall",
                     right_wall_name="Internal Wall",
                 ),
-            ]
+            ],
         )
 
         # Nettofläche = 5.0 * 4.0 = 20.0 m²
@@ -672,19 +607,49 @@ class TestRoom:
             net_height_m=2.5,
             ceiling=ceiling_elem,
             walls=[
-                Wall(orientation="Nord", net_length_m=5.0, construction_name="External Wall",
-                     left_wall_name="External Wall", right_wall_name="External Wall"),
-                Wall(orientation="Ost 1", net_length_m=4.0, construction_name="External Wall",
-                     left_wall_name="External Wall", right_wall_name="External Wall"),
-                Wall(orientation="Süd 1", net_length_m=3.0, construction_name="External Wall",
-                     left_wall_name="External Wall", right_wall_name="External Wall"),
-                Wall(orientation="Ost 2", net_length_m=3.0, construction_name="External Wall",
-                     left_wall_name="External Wall", right_wall_name="External Wall"),
-                Wall(orientation="Süd 2", net_length_m=2.0, construction_name="External Wall",
-                     left_wall_name="External Wall", right_wall_name="External Wall"),
-                Wall(orientation="West", net_length_m=7.0, construction_name="External Wall",
-                     left_wall_name="External Wall", right_wall_name="External Wall"),
-            ]
+                Wall(
+                    orientation="Nord",
+                    net_length_m=5.0,
+                    construction_name="External Wall",
+                    left_wall_name="External Wall",
+                    right_wall_name="External Wall",
+                ),
+                Wall(
+                    orientation="Ost 1",
+                    net_length_m=4.0,
+                    construction_name="External Wall",
+                    left_wall_name="External Wall",
+                    right_wall_name="External Wall",
+                ),
+                Wall(
+                    orientation="Süd 1",
+                    net_length_m=3.0,
+                    construction_name="External Wall",
+                    left_wall_name="External Wall",
+                    right_wall_name="External Wall",
+                ),
+                Wall(
+                    orientation="Ost 2",
+                    net_length_m=3.0,
+                    construction_name="External Wall",
+                    left_wall_name="External Wall",
+                    right_wall_name="External Wall",
+                ),
+                Wall(
+                    orientation="Süd 2",
+                    net_length_m=2.0,
+                    construction_name="External Wall",
+                    left_wall_name="External Wall",
+                    right_wall_name="External Wall",
+                ),
+                Wall(
+                    orientation="West",
+                    net_length_m=7.0,
+                    construction_name="External Wall",
+                    left_wall_name="External Wall",
+                    right_wall_name="External Wall",
+                ),
+            ],
         )
 
         # Nettofläche = (5.0 * 4.0) + (2.0 * 3.0) = 20.0 + 6.0 = 26.0 m²
@@ -805,10 +770,6 @@ class TestBuilding:
         area = Area(
             length_m=5.0,
             width_m=4.0,
-            left_adjacent_name="No Wall",
-            right_adjacent_name="No Wall",
-            top_adjacent_name="No Wall",
-            bottom_adjacent_name="No Wall",
         )
         room = Room(name="Living Room", areas=[area], net_height_m=2.5)
         building = Building(name="Test Building", rooms=[room])
@@ -906,10 +867,6 @@ class TestIntegration:
         area = Area(
             length_m=5.0,
             width_m=4.0,
-            left_adjacent_name="External Wall",
-            right_adjacent_name="External Wall",
-            top_adjacent_name="Internal Wall",
-            bottom_adjacent_name="Internal Wall",
         )
 
         room = Room(
@@ -932,7 +889,6 @@ class TestIntegration:
         assert len(building.rooms) == 1
         assert building.rooms[0].floor_area_m2 == 20.0
         assert building.rooms[0].volume_m3 == 50.0
-        assert len(building.rooms[0].elements) == 3  # window, floor, ceiling
 
         # Test catalog lookups
         assert building.outside_temperature.value_celsius == -10.0

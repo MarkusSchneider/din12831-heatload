@@ -41,9 +41,6 @@ class Temperature(BaseModel):
     name: str = Field(description="Bezeichnung der Temperatur (z.B. 'Wohnraum', 'Außen', 'Keller')")
     value_celsius: float = Field(description="Temperaturwert in °C")
 
-    def __str__(self) -> str:
-        return f"{self.name} ({self.value_celsius:.1f} °C)"
-
 
 class Ventilation(BaseModel):
     """
@@ -221,8 +218,8 @@ class Room(BaseModel):
     """
 
     name: str
-    areas: list[Area] | None = Field(
-        default=None,
+    areas: list[Area] = Field(
+        default=[],
         description="Raumgrundriss als Summe mehrerer Rechtecke (jeweils Länge×Breite).",
     )
     net_height_m: float = Field(gt=0, description="Netto-Raumhöhe (Innenraumhöhe) in m")
@@ -231,7 +228,6 @@ class Room(BaseModel):
     floor: Element | None = Field(default=None, description="Bodenkonstruktion")
     ceiling: Element | None = Field(default=None, description="Deckenkonstruktion")
     ventilation: Ventilation = Field(default_factory=Ventilation)
-    floor_plan_image: str | None = Field(default=None, description="Base64-kodiertes Grundrissbild")
 
     @property
     def floor_area_m2(self) -> float:
@@ -251,135 +247,91 @@ class Room(BaseModel):
                 ceiling_thickness = ceiling_construction.thickness_m
         return self.net_height_m + ceiling_thickness
 
-    def gross_floor_area_m2(self, building: Building) -> float:
-        """Berechnet die Brutto-Grundfläche des Bodens nach Option C.
+    def _get_neighbor_thickness(self, building: Building, wall_name: str | None) -> float:
+        """Berechnet die Dicke einer Nachbarwand für Flächenstreifen-Berechnung.
 
-        Bruttofläche = Nettofläche + Σ (Nettolänge + Dicke_links/2 + Dicke_rechts/2) × Wanddicke
+        Innenwände tragen nur mit halber Dicke bei (da sie zwischen zwei Räumen liegen).
+        Außenwände tragen mit voller Dicke bei.
+
+        Args:
+            building: Building-Objekt für Zugriff auf Konstruktionskatalog
+            wall_name: Name der Nachbarwand
+
+        Returns:
+            Halbe oder volle Wanddicke in Metern (0.0 wenn wall_name None)
+        """
+        if not wall_name:
+            return 0.0
+
+        construction = building.get_construction_by_name(wall_name)
+        if not construction or construction.thickness_m is None:
+            return 0.0
+
+        thickness = construction.thickness_m
+        if construction.element_type == ConstructionType.INTERNAL_WALL:
+            return thickness / 2
+        return thickness
+
+    def _calculate_gross_area_m2(self, building: Building, construction_name: str) -> float:
+        """Berechnet die Brutto-Grundfläche mit Option C Formel.
+
+        Bruttofläche = Nettofläche + Σ (Nettolänge + Dicke_links/2 + Dicke_rechts/2) × Dicke
 
         Für jede Wand wird ein Flächenstreifen berechnet, der die halben Nachbarwanddicken
         einbezieht. So werden Ecken automatisch korrekt erfasst (jede Ecke von zwei Wänden
         je zur Hälfte).
+
+        Args:
+            building: Building-Objekt für Zugriff auf Konstruktionskatalog
+            construction_name: Name der Konstruktion (Boden oder Decke)
+
+        Returns:
+            Brutto-Grundfläche in m²
         """
-        if not self.floor or not self.areas:
+        if not self.areas:
             return 0.0
 
         # Nettofläche als Basis
         net_area = self.floor_area_m2
 
         # Addiere Flächenstreifen für jede Wand
-        floor_construction = building.get_construction_by_name(self.floor.construction_name)
-        if not floor_construction or floor_construction.thickness_m is None:
+        construction = building.get_construction_by_name(construction_name)
+        if not construction or construction.thickness_m is None:
             return net_area
 
-        floor_thickness = floor_construction.thickness_m
+        thickness = construction.thickness_m
 
         for wall in self.walls:
             wall_construction = building.get_construction_by_name(wall.construction_name)
             if not wall_construction or wall_construction.thickness_m is None:
                 continue
 
-            wall_thickness = wall_construction.thickness_m
+            # Berechne Dicken der Nachbarwände (halbe Dicke bei Innenwänden)
+            left_thickness = self._get_neighbor_thickness(building, wall.left_wall_name)
+            right_thickness = self._get_neighbor_thickness(building, wall.right_wall_name)
 
-            # Berechne Dicke der linken Nachbarwand (halbe Dicke bei Innenwand)
-            left_thickness = 0.0
-            if wall.left_wall_name:
-                left_constr = building.get_construction_by_name(wall.left_wall_name)
-                if left_constr and left_constr.thickness_m is not None:
-                    left_thickness = left_constr.thickness_m
-                    if left_constr.element_type == ConstructionType.INTERNAL_WALL:
-                        left_thickness = left_thickness / 2
-
-            # Berechne Dicke der rechten Nachbarwand (halbe Dicke bei Innenwand)
-            right_thickness = 0.0
-            if wall.right_wall_name:
-                right_constr = building.get_construction_by_name(wall.right_wall_name)
-                if right_constr and right_constr.thickness_m is not None:
-                    right_thickness = right_constr.thickness_m
-                    if right_constr.element_type == ConstructionType.INTERNAL_WALL:
-                        right_thickness = right_thickness / 2
-
-            # Flächenstreifen: (Nettolänge + halbe Nachbardicken) × Wanddicke
+            # Flächenstreifen: (Nettolänge + halbe Nachbardicken) × Dicke
             strip_length = wall.net_length_m + left_thickness + right_thickness
-            strip_area = strip_length * floor_thickness
+            strip_area = strip_length * thickness
             net_area += strip_area
 
         return net_area
+
+    def gross_floor_area_m2(self, building: Building) -> float:
+        """Berechnet die Brutto-Grundfläche des Bodens mit Option C Formel."""
+        if not self.floor:
+            return 0.0
+        return self._calculate_gross_area_m2(building, self.floor.construction_name)
 
     def gross_ceiling_area_m2(self, building: Building) -> float:
-        """Berechnet die Brutto-Grundfläche der Decke nach Option C.
-
-        Bruttofläche = Nettofläche + Σ (Nettolänge + Dicke_links/2 + Dicke_rechts/2) × Wanddicke
-
-        Für jede Wand wird ein Flächenstreifen berechnet, der die halben Nachbarwanddicken
-        einbezieht. So werden Ecken automatisch korrekt erfasst (jede Ecke von zwei Wänden
-        je zur Hälfte).
-        """
-        if not self.ceiling or not self.areas:
+        """Berechnet die Brutto-Grundfläche der Decke mit Option C Formel."""
+        if not self.ceiling:
             return 0.0
-
-        # Nettofläche als Basis
-        net_area = self.floor_area_m2
-
-        # Addiere Flächenstreifen für jede Wand
-        ceiling_construction = building.get_construction_by_name(self.ceiling.construction_name)
-        if not ceiling_construction or ceiling_construction.thickness_m is None:
-            return net_area
-
-        ceiling_thickness = ceiling_construction.thickness_m
-
-        for wall in self.walls:
-            wall_construction = building.get_construction_by_name(wall.construction_name)
-            if not wall_construction or wall_construction.thickness_m is None:
-                continue
-
-            wall_thickness = wall_construction.thickness_m
-
-            # Berechne Dicke der linken Nachbarwand (halbe Dicke bei Innenwand)
-            left_thickness = 0.0
-            if wall.left_wall_name:
-                left_constr = building.get_construction_by_name(wall.left_wall_name)
-                if left_constr and left_constr.thickness_m is not None:
-                    left_thickness = left_constr.thickness_m
-                    if left_constr.element_type == ConstructionType.INTERNAL_WALL:
-                        left_thickness = left_thickness / 2
-
-            # Berechne Dicke der rechten Nachbarwand (halbe Dicke bei Innenwand)
-            right_thickness = 0.0
-            if wall.right_wall_name:
-                right_constr = building.get_construction_by_name(wall.right_wall_name)
-                if right_constr and right_constr.thickness_m is not None:
-                    right_thickness = right_constr.thickness_m
-                    if right_constr.element_type == ConstructionType.INTERNAL_WALL:
-                        right_thickness = right_thickness / 2
-
-            # Flächenstreifen: (Nettolänge + halbe Nachbardicken) × Wanddicke
-            strip_length = wall.net_length_m + left_thickness + right_thickness
-            strip_area = strip_length * ceiling_thickness
-            net_area += strip_area
-
-        return net_area
+        return self._calculate_gross_area_m2(building, self.ceiling.construction_name)
 
     @property
     def volume_m3(self) -> float:
         return self.floor_area_m2 * self.net_height_m
-
-    @property
-    def elements(self) -> list[Element]:
-        """Gibt alle Bauelemente (Wände, Fenster, Türen, Boden, Decke) des Raums zurück."""
-        result: list[Element] = []
-
-        # Sammle alle Fenster und Türen aus allen Wänden
-        for wall in self.walls:
-            result.extend(wall.windows)
-            result.extend(wall.doors)
-
-        # Füge Boden und Decke hinzu, falls vorhanden
-        if self.floor is not None:
-            result.append(self.floor)
-        if self.ceiling is not None:
-            result.append(self.ceiling)
-
-        return result
 
 
 class Building(BaseModel):

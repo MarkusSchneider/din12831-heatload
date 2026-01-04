@@ -311,6 +311,53 @@
         "air_change_1_h": 1.0
       },
       "floor_plan_image": null
+    },
+    {
+      "name": "Gym",
+      "areas": [
+        {
+          "length_m": 3.47,
+          "width_m": 3.12
+        },
+        {
+          "length_m": 1.39,
+          "width_m": 2.2
+        }
+      ],
+      "net_height_m": 2.5,
+      "room_temperature_name": "Wohnraum",
+      "walls": [
+        {
+          "orientation": "Nordwand",
+          "net_length_m": 3.47,
+          "construction_name": "Außenwand",
+          "windows": [],
+          "doors": [],
+          "left_wall_name": "Innenwand_24",
+          "right_wall_name": "Innenwand_24",
+          "adjacent_room_temperature_name": null
+        }
+      ],
+      "floor": {
+        "type": "floor",
+        "name": "Boden",
+        "construction_name": "Boden",
+        "width_m": null,
+        "height_m": null,
+        "adjacent_temperature_name": "Wohnraum"
+      },
+      "ceiling": {
+        "type": "ceiling",
+        "name": "Decke",
+        "construction_name": "Decke",
+        "width_m": null,
+        "height_m": null,
+        "adjacent_temperature_name": "Wohnraum"
+      },
+      "ventilation": {
+        "air_change_1_h": 0.5
+      },
+      "floor_plan_image": null
     }
   ]
 }

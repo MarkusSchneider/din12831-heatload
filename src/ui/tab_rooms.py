@@ -529,20 +529,84 @@ def render_room_info(room: Room, room_idx: int) -> None:
 # ============================================================================
 
 
-def render_area_info(area: Area, area_idx: int, total_areas: int) -> None:
-    """Zeigt Informationen zu einer Fläche."""
+def render_area_update_form(room: Room, room_idx: int, area_idx: int) -> None:
+    """Zeigt Formular zum Aktualisieren einer Fläche."""
+    area = room.areas[area_idx]
+
+    with st.form(key=f"update_area_form_{room_idx}_{area_idx}"):
+        st.write("**Fläche bearbeiten:**")
+
+        cols = st.columns([2, 2])
+
+        with cols[0]:
+            updated_length = st.number_input(
+                "Länge (m)",
+                min_value=0.1,
+                value=area.length_m,
+                step=0.1,
+                key=f"update_area_length_{room_idx}_{area_idx}",
+            )
+
+        with cols[1]:
+            updated_width = st.number_input(
+                "Breite (m)",
+                min_value=0.1,
+                value=area.width_m,
+                step=0.1,
+                key=f"update_area_width_{room_idx}_{area_idx}",
+            )
+
+        button_cols = st.columns([9, 1])
+        with button_cols[1]:
+            submit = st.form_submit_button("💾 Speichern", type="primary")
+
+        if submit:
+            area.length_m = updated_length
+            area.width_m = updated_width
+
+            st.session_state[f"show_area_update_form_{room_idx}_{area_idx}"] = False
+            st.session_state[f"room_{room_idx}_expanded"] = True
+            save_building(st.session_state.building)
+            st.success(f"Fläche {area_idx + 1} wurde aktualisiert!")
+            st.rerun()
+
+
+def render_area_info(area: Area, area_idx: int, total_areas: int, room: Room, room_idx: int) -> None:
+    """Zeigt Informationen zu einer Fläche mit Bearbeiten- und Löschen-Button."""
     net_area = area.area_m2
 
     title = f"Fläche {area_idx + 1}" if total_areas > 1 else "Fläche"
     expander_title = f"📐 {title}: {area.length_m:.2f} m × {area.width_m:.2f} m = {net_area:.2f} m²"
 
     with st.expander(expander_title, expanded=False):
-        cols = st.columns([2, 2])
-        with cols[0]:
-            st.write(f"**Länge:** {area.length_m:.2f} m")
-            st.write(f"**Breite:** {area.width_m:.2f} m")
-        with cols[1]:
-            st.write(f"**Nettofläche:** {net_area:.2f} m²")
+        # Header mit Buttons
+        update_form_key = f"show_area_update_form_{room_idx}_{area_idx}"
+        show_update = st.session_state.get(update_form_key, False)
+
+        header_cols = st.columns([10, 1])
+        with header_cols[1]:
+            btn_cols = st.columns(2)
+            with btn_cols[0]:
+                if st.button("✏️" if not show_update else "✖️", key=f"toggle_area_update_{room_idx}_{area_idx}"):
+                    st.session_state[update_form_key] = not show_update
+                    st.rerun()
+            with btn_cols[1]:
+                if total_areas > 1 and st.button("🗑️", key=f"delete_area_{room_idx}_{area_idx}"):
+                    room.areas.pop(area_idx)
+                    st.session_state[f"room_{room_idx}_expanded"] = True
+                    save_building(st.session_state.building)
+                    st.rerun()
+
+        # Update-Formular oder Info anzeigen
+        if show_update:
+            render_area_update_form(room, room_idx, area_idx)
+        else:
+            cols = st.columns([2, 2])
+            with cols[0]:
+                st.write(f"**Länge:** {area.length_m:.2f} m")
+                st.write(f"**Breite:** {area.width_m:.2f} m")
+            with cols[1]:
+                st.write(f"**Nettofläche:** {net_area:.2f} m²")
 
 
 def render_room_areas_editor(room: Room, room_idx: int) -> None:
@@ -550,17 +614,24 @@ def render_room_areas_editor(room: Room, room_idx: int) -> None:
     if room.areas is None:
         room.areas = []
 
-    rect_ids_key = f"room_{room_idx}_rect_ids"
-    if rect_ids_key not in st.session_state or len(st.session_state[rect_ids_key]) != len(room.areas):
-        st.session_state[rect_ids_key] = list(range(1, len(room.areas) + 1)) or [1]
-        if not room.areas:
-            room.areas = [Area(length_m=4.0, width_m=3.0)]
+    # Header mit Add-Button
+    header_cols = st.columns([20, 1])
+    with header_cols[0]:
+        st.subheader("Flächen")
+    with header_cols[1]:
+        st.write("")
+        if st.button("➕", key=f"add_area_{room_idx}", type="secondary"):
+            room.areas.append(Area(length_m=4.0, width_m=3.0))
+            st.session_state[f"room_{room_idx}_expanded"] = True
+            save_building(st.session_state.building)
+            st.rerun()
 
-    rect_ids: list[int] = st.session_state[rect_ids_key]
+    if not room.areas:
+        st.info("Noch keine Flächen vorhanden.")
+        return
 
-    st.subheader("Flächen")
-    for idx, _ in enumerate(list(rect_ids)):
-        render_area_info(room.areas[idx], idx, len(room.areas))
+    for idx, area in enumerate(room.areas):
+        render_area_info(area, idx, len(room.areas), room, room_idx)
 
 
 # ============================================================================
