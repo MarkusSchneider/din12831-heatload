@@ -215,8 +215,97 @@ def render_areas_section() -> list[Area]:
     return rectangles_payload
 
 
+def render_update_area_editor(room_idx: int, area: Area, area_idx: int, total_areas: int) -> Area:
+    """Zeigt Editor für ein einzelnes Rechteck im Update-Formular."""
+    cols = st.columns([2, 2, 1])
+
+    with cols[0]:
+        r_len = st.number_input(
+            "Länge (m)",
+            min_value=0.0,
+            value=area.length_m,
+            step=0.1,
+            key=f"update_room_rect_{room_idx}_{area_idx}_len",
+        )
+
+    with cols[1]:
+        r_wid = st.number_input(
+            "Breite (m)",
+            min_value=0.0,
+            value=area.width_m,
+            step=0.1,
+            key=f"update_room_rect_{room_idx}_{area_idx}_wid",
+        )
+
+    with cols[2]:
+        st.write("")  # Spacer für vertikale Ausrichtung
+        if total_areas > 1:
+            delete_key = f"update_room_rect_{room_idx}_{area_idx}_del"
+            # Platzhalter für Löschen-Button (wird außerhalb gehandhabt)
+            st.button("🗑️", key=delete_key, disabled=True, help="Wird beim nächsten Speichern entfernt")
+
+    return Area(
+        length_m=float(r_len),
+        width_m=float(r_wid),
+    )
+
+
+def render_update_areas_section(room: Room, room_idx: int) -> list[Area]:
+    """Zeigt die Sektion zum Bearbeiten von Flächen im Update-Formular."""
+    st.write("**Flächen**")
+
+    if room.areas is None:
+        room.areas = []
+
+    rectangles_payload: list[Area] = []
+
+    for idx, area in enumerate(room.areas):
+        cols = st.columns([2, 2, 1])
+
+        with cols[0]:
+            r_len = st.number_input(
+                "Länge (m)",
+                min_value=0.0,
+                value=area.length_m,
+                step=0.1,
+                key=f"update_room_rect_{room_idx}_{idx}_len",
+            )
+
+        with cols[1]:
+            r_wid = st.number_input(
+                "Breite (m)",
+                min_value=0.0,
+                value=area.width_m,
+                step=0.1,
+                key=f"update_room_rect_{room_idx}_{idx}_wid",
+            )
+
+        with cols[2]:
+            st.write("")  # Spacer für vertikale Ausrichtung
+            if len(room.areas) > 1:
+                delete_key = f"update_room_rect_{room_idx}_{idx}_del"
+                if st.button("🗑️", key=delete_key):
+                    room.areas.pop(idx)
+                    # Halte Expander und Update-Formular offen
+                    st.session_state[f"room_{room_idx}_expanded"] = True
+                    st.session_state[f"show_room_update_form_{room_idx}"] = True
+                    save_building(st.session_state.building)
+                    st.rerun()
+
+        rectangles_payload.append(Area(length_m=float(r_len), width_m=float(r_wid)))
+
+    if st.button("➕ Weitere Fläche hinzufügen", key=f"add_update_room_rect_{room_idx}"):
+        room.areas.append(Area(length_m=4.0, width_m=3.0))
+        # Halte Expander und Update-Formular offen
+        st.session_state[f"room_{room_idx}_expanded"] = True
+        st.session_state[f"show_room_update_form_{room_idx}"] = True
+        st.rerun()
+
+    return rectangles_payload
+
+
 def validate_new_room_inputs(
-    room_name: str, rectangles: list[Area], temp_name: str | None, floor_constr: str | None, ceiling_constr: str | None
+    room_name: str, rectangles: list[Area], temp_name: str, floor_constr: str | None, ceiling_constr: str | None
 ) -> str | None:
     """Validiert die Eingaben für einen neuen Raum. Gibt Fehlermeldung zurück oder None."""
     if not room_name:
@@ -431,7 +520,7 @@ def render_room_heat_loads(room: Room, room_idx: int) -> None:
 
 def render_room_update_form(room: Room, room_idx: int) -> None:
     """Zeigt Formular zum Aktualisieren der Raum-Grunddaten."""
-    with st.form(key=f"update_room_form_{room_idx}"):
+    with st.container(border=True):
         st.write("**Raum-Grunddaten bearbeiten:**")
 
         col1, col2 = st.columns(2)
@@ -439,11 +528,14 @@ def render_room_update_form(room: Room, room_idx: int) -> None:
         with col1:
             updated_name = st.text_input("Raumname", value=room.name, key=f"update_room_name_{room_idx}")
 
+            # Flächen im linken Bereich
+            rectangles_payload = render_update_areas_section(room, room_idx)
+
+        with col2:
             updated_height = st.number_input(
                 "Höhe (m)", min_value=0.1, value=room.net_height_m, step=0.1, key=f"update_room_height_{room_idx}"
             )
 
-        with col2:
             temp_options = get_temperature_options()
             current_temp_idx = 0
             if room.room_temperature_name and room.room_temperature_name in temp_options:
@@ -463,21 +555,189 @@ def render_room_update_form(room: Room, room_idx: int) -> None:
                 value=room.ventilation.air_change_1_h,
                 step=0.1,
                 key=f"update_room_air_change_{room_idx}",
+                help="Anzahl der Luftwechsel pro Stunde. Die Norm empfiehlt mindestens 0.5 1/h für Wohnräume.",
             )
+
+            # Boden-Sektion
+            st.write("**Boden:**")
+            col_floor_1, col_floor_2 = st.columns(2)
+
+            with col_floor_1:
+                floor_options = get_catalog_by_type(ConstructionType.FLOOR)
+                if floor_options:
+                    current_floor_idx = 0
+                    if room.floor and room.floor.construction_name:
+                        floor_names = [c.name for c in floor_options]
+                        if room.floor.construction_name in floor_names:
+                            current_floor_idx = floor_names.index(room.floor.construction_name)
+
+                    updated_floor_construction = st.selectbox(
+                        "Konstruktion",
+                        options=[c.name for c in floor_options],
+                        index=current_floor_idx,
+                        key=f"update_room_floor_construction_{room_idx}",
+                        help="Aufbau des Boden",
+                    )
+                else:
+                    st.error("Im Bauteilkatalog fehlt mindestens eine Boden-Konstruktion.")
+                    updated_floor_construction = None
+
+            with col_floor_2:
+                temp_catalog = st.session_state.building.temperature_catalog
+                if temp_catalog:
+                    temp_by_name = get_temperature_options()
+                    current_floor_temp_idx = 0
+                    if (
+                        room.floor
+                        and room.floor.adjacent_temperature_name
+                        and room.floor.adjacent_temperature_name in temp_by_name
+                    ):
+                        current_floor_temp_idx = list(temp_by_name.keys()).index(room.floor.adjacent_temperature_name)
+
+                    updated_floor_temp = st.selectbox(
+                        "Angrenzende Temperatur",
+                        options=list(temp_by_name.keys()),
+                        index=current_floor_temp_idx,
+                        format_func=lambda name: f"{name} ({temp_by_name[name].value_celsius:.1f} °C)",
+                        key=f"update_floor_adjacent_temp_{room_idx}",
+                    )
+                else:
+                    st.error("Bitte zuerst Temperaturen im Temperaturkatalog anlegen.")
+                    updated_floor_temp = None
+
+            # Decken-Sektion
+            st.write("**Decke:**")
+            col_ceiling_1, col_ceiling_2 = st.columns(2)
+
+            with col_ceiling_1:
+                ceiling_options = get_catalog_by_type(ConstructionType.CEILING)
+                if ceiling_options:
+                    current_ceiling_idx = 0
+                    if room.ceiling and room.ceiling.construction_name:
+                        ceiling_names = [c.name for c in ceiling_options]
+                        if room.ceiling.construction_name in ceiling_names:
+                            current_ceiling_idx = ceiling_names.index(room.ceiling.construction_name)
+
+                    updated_ceiling_construction = st.selectbox(
+                        "Konstruktion",
+                        options=[c.name for c in ceiling_options],
+                        index=current_ceiling_idx,
+                        key=f"update_room_ceiling_construction_{room_idx}",
+                        help="Aufbau des Decke",
+                    )
+                else:
+                    st.error("Im Bauteilkatalog fehlt mindestens eine Decke-Konstruktion.")
+                    updated_ceiling_construction = None
+
+            with col_ceiling_2:
+                if temp_catalog:
+                    current_ceiling_temp_idx = 0
+                    if (
+                        room.ceiling
+                        and room.ceiling.adjacent_temperature_name
+                        and room.ceiling.adjacent_temperature_name in temp_by_name
+                    ):
+                        current_ceiling_temp_idx = list(temp_by_name.keys()).index(
+                            room.ceiling.adjacent_temperature_name
+                        )
+
+                    updated_ceiling_temp = st.selectbox(
+                        "Angrenzende Temperatur",
+                        options=list(temp_by_name.keys()),
+                        index=current_ceiling_temp_idx,
+                        format_func=lambda name: f"{name} ({temp_by_name[name].value_celsius:.1f} °C)",
+                        key=f"update_ceiling_adjacent_temp_{room_idx}",
+                    )
+                else:
+                    updated_ceiling_temp = None
 
         button_cols = st.columns([9, 1])
         with button_cols[1]:
-            submit = st.form_submit_button("💾 Speichern", type="primary")
+            submit = st.button("💾 Speichern", type="primary", key=f"update_room_submit_{room_idx}")
 
         if submit:
             if not updated_name or updated_name.strip() == "":
                 st.error("Bitte geben Sie einen Raumnamen ein.")
                 return
 
+            if not rectangles_payload:
+                st.error("Bitte mindestens eine Fläche angeben.")
+                return
+
+            for idx, area in enumerate(rectangles_payload, 1):
+                if area.length_m <= 0 or area.width_m <= 0:
+                    st.error(f"Fläche {idx}: Länge und Breite müssen größer als 0 sein.")
+                    return
+
+            if not updated_floor_construction or not updated_ceiling_construction:
+                st.error("Bitte Boden und Decke aus dem Katalog auswählen.")
+                return
+
+            if not updated_floor_temp or not updated_ceiling_temp:
+                st.error("Bitte angrenzende Temperaturen für Boden und Decke auswählen.")
+                return
+
             room.name = updated_name
             room.net_height_m = updated_height
             room.room_temperature_name = updated_temp_name
             room.ventilation.air_change_1_h = updated_air_change
+            # Flächen wurden bereits direkt aktualisiert, verwende die aktuellen Werte
+            room.areas = rectangles_payload
+
+            # Boden aktualisieren
+            if room.floor:
+                room.floor.construction_name = updated_floor_construction
+                room.floor.adjacent_temperature_name = updated_floor_temp
+            else:
+                room.floor = Element(
+                    type=ElementType.FLOOR,
+                    name="Boden",
+                    construction_name=updated_floor_construction,
+                    adjacent_temperature_name=updated_floor_temp,
+                )
+
+            # Decke aktualisieren
+            if room.ceiling:
+                room.ceiling.construction_name = updated_ceiling_construction
+                room.ceiling.adjacent_temperature_name = updated_ceiling_temp
+            else:
+                room.ceiling = Element(
+                    type=ElementType.CEILING,
+                    name="Decke",
+                    construction_name=updated_ceiling_construction,
+                    adjacent_temperature_name=updated_ceiling_temp,
+                )
+
+            st.session_state[f"show_room_update_form_{room_idx}"] = False
+            save_building(st.session_state.building)
+            st.success(f"Raum '{updated_name}' wurde aktualisiert!")
+            st.rerun()
+            room.room_temperature_name = updated_temp_name
+            room.ventilation.air_change_1_h = updated_air_change
+
+            # Boden aktualisieren
+            if room.floor:
+                room.floor.construction_name = updated_floor_construction
+                room.floor.adjacent_temperature_name = updated_floor_temp
+            else:
+                room.floor = Element(
+                    type=ElementType.FLOOR,
+                    name="Boden",
+                    construction_name=updated_floor_construction,
+                    adjacent_temperature_name=updated_floor_temp,
+                )
+
+            # Decke aktualisieren
+            if room.ceiling:
+                room.ceiling.construction_name = updated_ceiling_construction
+                room.ceiling.adjacent_temperature_name = updated_ceiling_temp
+            else:
+                room.ceiling = Element(
+                    type=ElementType.CEILING,
+                    name="Decke",
+                    construction_name=updated_ceiling_construction,
+                    adjacent_temperature_name=updated_ceiling_temp,
+                )
 
             st.session_state[f"show_room_update_form_{room_idx}"] = False
             save_building(st.session_state.building)
@@ -571,42 +831,42 @@ def render_area_update_form(room: Room, room_idx: int, area_idx: int) -> None:
             st.rerun()
 
 
-def render_area_info(area: Area, area_idx: int, total_areas: int, room: Room, room_idx: int) -> None:
-    """Zeigt Informationen zu einer Fläche mit Bearbeiten- und Löschen-Button."""
-    net_area = area.area_m2
+# def render_area_info(area: Area, area_idx: int, total_areas: int, room: Room, room_idx: int) -> None:
+#     """Zeigt Informationen zu einer Fläche mit Bearbeiten- und Löschen-Button."""
+#     net_area = area.area_m2
 
-    title = f"Fläche {area_idx + 1}" if total_areas > 1 else "Fläche"
-    expander_title = f"📐 {title}: {area.length_m:.2f} m × {area.width_m:.2f} m = {net_area:.2f} m²"
+#     title = f"Fläche {area_idx + 1}" if total_areas > 1 else "Fläche"
+#     expander_title = f"📐 {title}: {area.length_m:.2f} m × {area.width_m:.2f} m = {net_area:.2f} m²"
 
-    with st.expander(expander_title, expanded=False):
-        # Header mit Buttons
-        update_form_key = f"show_area_update_form_{room_idx}_{area_idx}"
-        show_update = st.session_state.get(update_form_key, False)
+#     with st.expander(expander_title, expanded=False):
+#         # Header mit Buttons
+#         update_form_key = f"show_area_update_form_{room_idx}_{area_idx}"
+#         show_update = st.session_state.get(update_form_key, False)
 
-        header_cols = st.columns([10, 1])
-        with header_cols[1]:
-            btn_cols = st.columns(2)
-            with btn_cols[0]:
-                if st.button("✏️" if not show_update else "✖️", key=f"toggle_area_update_{room_idx}_{area_idx}"):
-                    st.session_state[update_form_key] = not show_update
-                    st.rerun()
-            with btn_cols[1]:
-                if total_areas > 1 and st.button("🗑️", key=f"delete_area_{room_idx}_{area_idx}"):
-                    room.areas.pop(area_idx)
-                    st.session_state[f"room_{room_idx}_expanded"] = True
-                    save_building(st.session_state.building)
-                    st.rerun()
+#         header_cols = st.columns([10, 1])
+#         with header_cols[1]:
+#             btn_cols = st.columns(2)
+#             with btn_cols[0]:
+#                 if st.button("✏️" if not show_update else "✖️", key=f"toggle_area_update_{room_idx}_{area_idx}"):
+#                     st.session_state[update_form_key] = not show_update
+#                     st.rerun()
+#             with btn_cols[1]:
+#                 if total_areas > 1 and st.button("🗑️", key=f"delete_area_{room_idx}_{area_idx}"):
+#                     room.areas.pop(area_idx)
+#                     st.session_state[f"room_{room_idx}_expanded"] = True
+#                     save_building(st.session_state.building)
+#                     st.rerun()
 
-        # Update-Formular oder Info anzeigen
-        if show_update:
-            render_area_update_form(room, room_idx, area_idx)
-        else:
-            cols = st.columns([2, 2])
-            with cols[0]:
-                st.write(f"**Länge:** {area.length_m:.2f} m")
-                st.write(f"**Breite:** {area.width_m:.2f} m")
-            with cols[1]:
-                st.write(f"**Nettofläche:** {net_area:.2f} m²")
+#         # Update-Formular oder Info anzeigen
+#         if show_update:
+#             render_area_update_form(room, room_idx, area_idx)
+#         else:
+#             cols = st.columns([2, 2])
+#             with cols[0]:
+#                 st.write(f"**Länge:** {area.length_m:.2f} m")
+#                 st.write(f"**Breite:** {area.width_m:.2f} m")
+#             with cols[1]:
+#                 st.write(f"**Nettofläche:** {net_area:.2f} m²")
 
 
 def render_room_areas_editor(room: Room, room_idx: int) -> None:
@@ -626,12 +886,12 @@ def render_room_areas_editor(room: Room, room_idx: int) -> None:
             save_building(st.session_state.building)
             st.rerun()
 
-    if not room.areas:
-        st.info("Noch keine Flächen vorhanden.")
-        return
+    # if not room.areas:
+    #     st.info("Noch keine Flächen vorhanden.")
+    #     return
 
-    for idx, area in enumerate(room.areas):
-        render_area_info(area, idx, len(room.areas), room, room_idx)
+    # for idx, area in enumerate(room.areas):
+    #     render_area_info(area, idx, len(room.areas), room, room_idx)
 
 
 # ============================================================================

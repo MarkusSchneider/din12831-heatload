@@ -186,8 +186,7 @@
       },
       "ventilation": {
         "air_change_1_h": 0.5
-      },
-      "floor_plan_image": null
+      }
     },
     {
       "name": "Bad",
@@ -309,8 +308,7 @@
       },
       "ventilation": {
         "air_change_1_h": 1.0
-      },
-      "floor_plan_image": null
+      }
     },
     {
       "name": "Gym",
@@ -356,8 +354,7 @@
       },
       "ventilation": {
         "air_change_1_h": 0.5
-      },
-      "floor_plan_image": null
+      }
     }
   ]
 }
