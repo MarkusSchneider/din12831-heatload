@@ -194,7 +194,7 @@ class TestGetAdjacentThickness:
         building = Building(name="Test Building")
 
         with pytest.raises(AssertionError) as exc_info:
-            get_adjacent_thickness(building, "")
+            get_adjacent_thickness(building, None)  # type: ignore
         assert "adjacent_name cannot be None" in str(exc_info.value)
 
     def test_get_adjacent_thickness_window_raises_error(self):
@@ -402,6 +402,79 @@ class TestArea:
         # Gross area = 5.0 * 4.36 = 21.8
         gross_area = area.gross_area_m2(building)
         assert gross_area == pytest.approx(21.8)
+
+    def test_area_with_segments(self):
+        """Test area with segmented sides (mixed construction types)."""
+        from src.models import AdjacentSegment
+
+        external_wall = Construction(
+            name="External Wall", element_type=ConstructionType.EXTERNAL_WALL, u_value_w_m2k=0.24, thickness_m=0.36
+        )
+        internal_wall = Construction(
+            name="Internal Wall", element_type=ConstructionType.INTERNAL_WALL, u_value_w_m2k=0.5, thickness_m=0.12
+        )
+        no_wall = Construction(
+            name="No Wall", element_type=ConstructionType.INTERNAL_WALL, u_value_w_m2k=0.5, thickness_m=0.0
+        )
+        building = Building(name="Test Building", construction_catalog=[external_wall, internal_wall, no_wall])
+
+        # Area with left side split into two segments: 3m with internal wall, 1m with no wall (internal connection)
+        area = Area(
+            length_m=5.0,
+            width_m=4.0,
+            left_segments=[
+                AdjacentSegment(length_m=3.0, adjacent_name="Internal Wall"),  # 3m * 0.06 = 0.18
+                AdjacentSegment(length_m=1.0, adjacent_name="No Wall"),  # 1m * 0.0 = 0.0
+            ],
+            right_adjacent_name="External Wall",  # 0.36
+            top_adjacent_name="External Wall",  # 0.36
+            bottom_adjacent_name="No Wall",  # 0.0
+        )
+
+        # Left weighted thickness = (3.0 * 0.06 + 1.0 * 0.0) / 4.0 = 0.18 / 4.0 = 0.045
+        # Gross length = 5.0 + 0.36 + 0.0 = 5.36
+        # Gross width = 4.0 + 0.045 + 0.36 = 4.405
+        # Gross area = 5.36 * 4.405 = 23.6108
+        gross_area = area.gross_area_m2(building)
+        assert gross_area == pytest.approx(23.6108)
+
+    def test_area_segments_length_mismatch_fails(self):
+        """Test that segments must sum to the expected side length."""
+        from src.models import AdjacentSegment
+
+        Construction(
+            name="Internal Wall", element_type=ConstructionType.INTERNAL_WALL, u_value_w_m2k=0.5, thickness_m=0.12
+        )
+        Construction(name="No Wall", element_type=ConstructionType.INTERNAL_WALL, u_value_w_m2k=0.5, thickness_m=0.0)
+
+        # Segments sum to 3.5m but width_m is 4.0m
+        with pytest.raises(ValueError) as exc_info:
+            Area(
+                length_m=5.0,
+                width_m=4.0,
+                left_segments=[
+                    AdjacentSegment(length_m=2.0, adjacent_name="Internal Wall"),
+                    AdjacentSegment(length_m=1.5, adjacent_name="No Wall"),
+                ],
+                right_adjacent_name="Internal Wall",
+                top_adjacent_name="Internal Wall",
+                bottom_adjacent_name="No Wall",
+            )
+        assert "Sum of segment lengths" in str(exc_info.value)
+
+    def test_area_missing_adjacent_definition_fails(self):
+        """Test that each side must have either adjacent_name or segments."""
+
+        # Missing left_adjacent_name and no left_segments
+        with pytest.raises(ValueError) as exc_info:
+            Area(
+                length_m=5.0,
+                width_m=4.0,
+                right_adjacent_name="Internal Wall",
+                top_adjacent_name="Internal Wall",
+                bottom_adjacent_name="Internal Wall",
+            )
+        assert "must have either adjacent_name or segments defined" in str(exc_info.value)
 
 
 class TestWall:

@@ -55,6 +55,18 @@ class Ventilation(BaseModel):
     air_change_1_h: float = Field(default=0.5, ge=0.0, description="Luftwechsel n in 1/h")
 
 
+class AdjacentSegment(BaseModel):
+    """
+    Segment einer Seite mit eigener Länge und Konstruktion.
+
+    Wird verwendet, wenn eine Seite einer Area aus mehreren Teilen besteht,
+    z.B. ein Teil grenzt an eine Wand, ein anderer Teil an eine andere Area.
+    """
+
+    length_m: float = Field(gt=0, description="Länge dieses Segments in m")
+    adjacent_name: str = Field(description="Name des angrenzenden Bauteils aus Katalog")
+
+
 class Area(BaseModel):
     """
     Rechteckige Teilfläche eines Raums (Boden/Decke).
@@ -62,16 +74,82 @@ class Area(BaseModel):
     Repräsentiert ein Rechteck mit Netto-Abmessungen und optionalen Verknüpfungen
     zu angrenzenden Bauteilen für Brutto-Flächenberechnungen (Außenmaße).
     Wird verwendet für Räume mit komplexen Grundrissen (L-Form, etc.).
+
+    Jede Seite kann entweder durch einen einfachen adjacent_name ODER durch
+    eine Liste von Segmenten (segments) definiert werden.
     """
 
     length_m: float = Field(ge=0)
     width_m: float = Field(ge=0)
 
-    # Angrenzende Bauteile für Brutto-Flächen-Berechnung (immer angeben, für interne Grenzen Dicke=0 verwenden)
-    left_adjacent_name: str = Field(description="Name des linken angrenzenden Bauteils aus Katalog")
-    top_adjacent_name: str = Field(description="Name des oberen angrenzenden Bauteils aus Katalog")
-    right_adjacent_name: str = Field(description="Name des rechten angrenzenden Bauteils aus Katalog")
-    bottom_adjacent_name: str = Field(description="Name des unteren angrenzenden Bauteils aus Katalog")
+    # Angrenzende Bauteile für Brutto-Flächen-Berechnung (einfache Variante)
+    left_adjacent_name: str | None = Field(
+        default=None, description="Name des linken angrenzenden Bauteils aus Katalog"
+    )
+    top_adjacent_name: str | None = Field(default=None, description="Name des oberen angrenzenden Bauteils aus Katalog")
+    right_adjacent_name: str | None = Field(
+        default=None, description="Name des rechten angrenzenden Bauteils aus Katalog"
+    )
+    bottom_adjacent_name: str | None = Field(
+        default=None, description="Name des unteren angrenzenden Bauteils aus Katalog"
+    )
+
+    # Alternative: Segmentierte Seiten (überschreibt adjacent_name)
+    left_segments: list[AdjacentSegment] | None = Field(default=None, description="Segmente der linken Seite")
+    top_segments: list[AdjacentSegment] | None = Field(default=None, description="Segmente der oberen Seite")
+    right_segments: list[AdjacentSegment] | None = Field(default=None, description="Segmente der rechten Seite")
+    bottom_segments: list[AdjacentSegment] | None = Field(default=None, description="Segmente der unteren Seite")
+
+    @model_validator(mode="after")
+    def validate_adjacent_definitions(self):
+        """Validiere, dass jede Seite entweder adjacent_name ODER segments definiert hat."""
+        sides = [
+            ("left", self.left_adjacent_name, self.left_segments, self.width_m),
+            ("right", self.right_adjacent_name, self.right_segments, self.width_m),
+            ("top", self.top_adjacent_name, self.top_segments, self.length_m),
+            ("bottom", self.bottom_adjacent_name, self.bottom_segments, self.length_m),
+        ]
+
+        for side_name, adjacent_name, segments, expected_length in sides:
+            if adjacent_name is None and segments is None:
+                raise ValueError(f"Side '{side_name}' must have either adjacent_name or segments defined")
+
+            # Wenn Segmente definiert sind, prüfe ob die Summe der Längen korrekt ist
+            if segments is not None:
+                total_segment_length = sum(seg.length_m for seg in segments)
+                if abs(total_segment_length - expected_length) > 0.001:  # Toleranz für Rundungsfehler
+                    raise ValueError(
+                        f"Side '{side_name}': Sum of segment lengths ({total_segment_length:.3f}m) "
+                        f"must equal area dimension ({expected_length:.3f}m)"
+                    )
+
+        return self
+
+    def _get_side_thickness(
+        self,
+        building: Building,
+        side_name: str,
+        adjacent_name: str | None,
+        segments: list[AdjacentSegment] | None,
+        side_length: float,
+    ) -> float:
+        """
+        Berechnet die gewichtete durchschnittliche Dicke einer Seite.
+
+        Wenn segments definiert sind, wird ein gewichteter Durchschnitt berechnet.
+        Sonst wird die Dicke des adjacent_name verwendet.
+        """
+        if segments is not None:
+            # Gewichteter Durchschnitt der Segmentdicken
+            weighted_sum = 0.0
+            for segment in segments:
+                thickness = get_adjacent_thickness(building, segment.adjacent_name)
+                weighted_sum += segment.length_m * thickness
+            return weighted_sum / side_length
+        elif adjacent_name is not None:
+            return get_adjacent_thickness(building, adjacent_name)
+        else:
+            raise ValueError(f"Side '{side_name}' has neither adjacent_name nor segments defined")
 
     @property
     def area_m2(self) -> float:
@@ -86,12 +164,21 @@ class Area(BaseModel):
         Bruttobreite = Breite + linke Wanddicke + rechte Wanddicke
         Bruttofläche = Bruttolänge × Bruttobreite
 
-        Für interne Grenzen zwischen Flächen (z.B. L-Form) wird eine Konstruktion mit Dicke=0 verwendet.
+        Für Seiten mit mehreren Segmenten wird ein gewichteter Durchschnitt der Dicken berechnet.
+        Für interne Grenzen zwischen Flächen wird eine Konstruktion mit Dicke=0 verwendet.
         """
-        left_thickness = get_adjacent_thickness(building, self.left_adjacent_name)
-        right_thickness = get_adjacent_thickness(building, self.right_adjacent_name)
-        top_thickness = get_adjacent_thickness(building, self.top_adjacent_name)
-        bottom_thickness = get_adjacent_thickness(building, self.bottom_adjacent_name)
+        left_thickness = self._get_side_thickness(
+            building, "left", self.left_adjacent_name, self.left_segments, self.width_m
+        )
+        right_thickness = self._get_side_thickness(
+            building, "right", self.right_adjacent_name, self.right_segments, self.width_m
+        )
+        top_thickness = self._get_side_thickness(
+            building, "top", self.top_adjacent_name, self.top_segments, self.length_m
+        )
+        bottom_thickness = self._get_side_thickness(
+            building, "bottom", self.bottom_adjacent_name, self.bottom_segments, self.length_m
+        )
 
         gross_length = self.length_m + top_thickness + bottom_thickness
         gross_width = self.width_m + left_thickness + right_thickness

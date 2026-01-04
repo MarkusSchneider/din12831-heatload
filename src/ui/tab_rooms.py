@@ -84,7 +84,7 @@ def render_ceiling_info(room: Room) -> None:
 
 def render_room_floor_ceiling_assignment(room: Room) -> None:
     """Zeigt Boden- und Deckenzuweisung eines Raums."""
-    col1, col2, _ = st.columns([2, 2, 1])
+    col1, col2 = st.columns([2, 2])
 
     with col1:
         render_floor_info(room)
@@ -100,7 +100,6 @@ def render_temperature_selector(key: str, label: str = "Raumtemperatur") -> str 
     temp_catalog = st.session_state.building.temperature_catalog
     if not temp_catalog:
         st.error("Bitte zuerst Temperaturen im Temperaturkatalog anlegen.")
-        return None
         return None
 
     temp_by_name = get_temperature_options()
@@ -132,7 +131,6 @@ def render_construction_selector(construction_type: ConstructionType, key: str, 
 def render_floor_ceiling_selectors() -> tuple[str | None, str | None, str | None, str | None]:
     """Zeigt Auswahldialoge für Boden und Decke."""
     # Boden-Sektion
-    st.write("**Boden:**")
     st.write("**Boden:**")
     col_floor_1, col_floor_2 = st.columns(2)
 
