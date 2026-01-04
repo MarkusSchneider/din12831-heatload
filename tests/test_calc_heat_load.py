@@ -1,26 +1,27 @@
 """Tests für calc_heat_load Modul."""
 
 import pytest
+
 from src.din12831.calc_heat_load import (
     ElementHeatLoad,
     RoomHeatLoadResult,
+    calc_building_heat_load,
     calc_element_transmission,
     calc_floor_ceiling_heat_load,
-    calc_walls_heat_load,
-    calc_ventilation_heat_load,
     calc_room_heat_load,
-    calc_building_heat_load,
+    calc_ventilation_heat_load,
+    calc_walls_heat_load,
 )
 from src.models import (
+    Area,
     Building,
-    Room,
     Construction,
     ConstructionType,
-    Temperature,
     Element,
     ElementType,
+    Room,
+    Temperature,
     Ventilation,
-    Area,
     Wall,
 )
 
@@ -94,23 +95,22 @@ def simple_room(sample_building):
     """Erstellt einen einfachen Testraum."""
     # Add no_wall construction for internal boundaries
     no_wall = Construction(
-        name="No Wall",
-        element_type=ConstructionType.INTERNAL_WALL,
-        u_value_w_m2k=0.5,
-        thickness_m=0.0
+        name="No Wall", element_type=ConstructionType.INTERNAL_WALL, u_value_w_m2k=0.5, thickness_m=0.0
     )
     sample_building.construction_catalog.append(no_wall)
 
     room = Room(
         name="Wohnzimmer",
-        areas=[Area(
-            length_m=5.0,
-            width_m=4.0,
-            left_adjacent_name="No Wall",
-            right_adjacent_name="No Wall",
-            top_adjacent_name="No Wall",
-            bottom_adjacent_name="No Wall"
-        )],
+        areas=[
+            Area(
+                length_m=5.0,
+                width_m=4.0,
+                left_adjacent_name="No Wall",
+                right_adjacent_name="No Wall",
+                top_adjacent_name="No Wall",
+                bottom_adjacent_name="No Wall",
+            )
+        ],
         net_height_m=2.5,
         room_temperature_name="Wohnraum",
         ventilation=Ventilation(air_change_1_h=0.5),

@@ -7,12 +7,7 @@ from pathlib import Path
 def main():
     """Launch the Streamlit app with proper runtime context."""
     # Get the directory where the executable is located
-    if getattr(sys, 'frozen', False):
-        # Running as compiled executable
-        app_dir = Path(getattr(sys, '_MEIPASS', ''))
-    else:
-        # Running as script
-        app_dir = Path(__file__).parent
+    app_dir = Path(getattr(sys, "_MEIPASS", "")) if getattr(sys, "frozen", False) else Path(__file__).parent
 
     # Set the app path
     app_path = app_dir / "app.py"

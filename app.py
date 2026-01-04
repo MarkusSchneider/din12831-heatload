@@ -1,22 +1,23 @@
 """Hauptanwendung für die DIN EN 12831 Heizlastberechnung."""
 
-import streamlit as st
 import json
-from pathlib import Path
-from src.utils import load_building, save_building
-from src.ui.tab_catalog import render_catalog_tab
-from src.ui.tab_temperatures import render_temperatures_tab
-from src.ui.tab_rooms import render_rooms_tab
-from src.ui.tab_report import render_report_tab
-from src.ui.tab_debug import render_debug_tab
+
+import streamlit as st
+
 from src.models import Building
+from src.ui.tab_catalog import render_catalog_tab
+from src.ui.tab_debug import render_debug_tab
+from src.ui.tab_report import render_report_tab
+from src.ui.tab_rooms import render_rooms_tab
+from src.ui.tab_temperatures import render_temperatures_tab
+from src.utils import load_building, save_building
 
 st.set_page_config(page_title="DIN EN 12831 Heizlast", layout="wide")
 
 
 def initialize_session_state() -> None:
     """Initialisiert den Session State."""
-    if 'building' not in st.session_state:
+    if "building" not in st.session_state:
         st.session_state.building = load_building()
 
 
@@ -28,9 +29,7 @@ def render_sidebar() -> None:
         # File Upload für Gebäudedaten
         st.subheader("📂 Datei laden")
         uploaded_file = st.file_uploader(
-            "Gebäudedaten laden",
-            type=['json'],
-            help="Wähle eine building_data*.json Datei zum Laden"
+            "Gebäudedaten laden", type=["json"], help="Wähle eine building_data*.json Datei zum Laden"
         )
 
         if uploaded_file is not None:
@@ -58,7 +57,7 @@ def render_sidebar() -> None:
             value=st.session_state.building.thermal_bridge_surcharge,
             step=0.01,
             format="%.3f",
-            help="Wärmebrückenzuschlag (Standard: 0.05). Wird pauschal zu allen U-Werten addiert. Liegt typisch zwischen 0.03 und 0.10."
+            help="Wärmebrückenzuschlag (Standard: 0.05). Wird pauschal zu allen U-Werten addiert. Liegt typisch zwischen 0.03 und 0.10.",
         )
 
         if thermal_bridge_surcharge != st.session_state.building.thermal_bridge_surcharge:
@@ -68,10 +67,8 @@ def render_sidebar() -> None:
         st.divider()
         st.subheader("Gebäudeübersicht")
         st.metric("Anzahl Räume", len(st.session_state.building.rooms))
-        st.metric("Konstruktionen im Katalog", len(
-            st.session_state.building.construction_catalog))
-        st.metric("Temperaturen im Katalog", len(
-            st.session_state.building.temperature_catalog))
+        st.metric("Konstruktionen im Katalog", len(st.session_state.building.construction_catalog))
+        st.metric("Temperaturen im Katalog", len(st.session_state.building.temperature_catalog))
 
 
 def main() -> None:

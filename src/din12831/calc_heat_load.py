@@ -2,12 +2,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from src.models import Building, Room, ConstructionType
+from src.models import Building, ConstructionType, Room
 
 
 @dataclass(frozen=True)
 class ElementHeatLoad:
     """Wärmeverlust eines einzelnen Bauteils."""
+
     element_name: str
     u_value_w_m2k: float
     u_value_corrected_w_m2k: float
@@ -33,7 +34,14 @@ class RoomHeatLoadResult:
         return self.transmission_w + self.ventilation_w
 
 
-def calc_element_transmission(building: Building, element_name: str, construction_name: str, area_m2: float, delta_temp: float, deduction_area_m2: float = 0.0) -> ElementHeatLoad:
+def calc_element_transmission(
+    building: Building,
+    element_name: str,
+    construction_name: str,
+    area_m2: float,
+    delta_temp: float,
+    deduction_area_m2: float = 0.0,
+) -> ElementHeatLoad:
     """Berechnet den Transmissionswärmeverlust eines Bauteils.
 
     Args:
@@ -59,11 +67,13 @@ def calc_element_transmission(building: Building, element_name: str, constructio
         u_value_corrected_w_m2k=u_value_corrected_w_m2k,
         area_m2=net_area_m2,
         delta_temp_k=delta_temp,
-        transmission_w=transmission_w
+        transmission_w=transmission_w,
     )
 
 
-def calc_floor_ceiling_heat_load(room: Room, room_temp: float, outside_temperatur: float, building: Building) -> list[ElementHeatLoad]:
+def calc_floor_ceiling_heat_load(
+    room: Room, room_temp: float, outside_temperatur: float, building: Building
+) -> list[ElementHeatLoad]:
     """Berechnet die Transmissionswärmeverluste für Boden und Decke."""
     elements_list: list[ElementHeatLoad] = []
 
@@ -79,13 +89,15 @@ def calc_floor_ceiling_heat_load(room: Room, room_temp: float, outside_temperatu
         else:
             delta_temp_floor = room_temp - outside_temperatur
 
-        elements_list.append(calc_element_transmission(
-            building,
-            room.floor.name,
-            room.floor.construction_name,
-            floor_area,
-            delta_temp_floor,
-        ))
+        elements_list.append(
+            calc_element_transmission(
+                building,
+                room.floor.name,
+                room.floor.construction_name,
+                floor_area,
+                delta_temp_floor,
+            )
+        )
 
     # Decke berechnen
     if room.ceiling:
@@ -99,18 +111,22 @@ def calc_floor_ceiling_heat_load(room: Room, room_temp: float, outside_temperatu
         else:
             delta_temp_ceiling = room_temp - outside_temperatur
 
-        elements_list.append(calc_element_transmission(
-            building,
-            room.ceiling.name,
-            room.ceiling.construction_name,
-            ceiling_area,
-            delta_temp_ceiling,
-        ))
+        elements_list.append(
+            calc_element_transmission(
+                building,
+                room.ceiling.name,
+                room.ceiling.construction_name,
+                ceiling_area,
+                delta_temp_ceiling,
+            )
+        )
 
     return elements_list
 
 
-def calc_walls_heat_load(room: Room, room_temp: float, outside_temperatur: float, building: Building) -> list[ElementHeatLoad]:
+def calc_walls_heat_load(
+    room: Room, room_temp: float, outside_temperatur: float, building: Building
+) -> list[ElementHeatLoad]:
     """Berechnet die Transmissionswärmeverluste für Wände (berücksichtigt Innenwände, Fenster und Türen)."""
     walls_list: list[ElementHeatLoad] = []
 
@@ -133,34 +149,40 @@ def calc_walls_heat_load(room: Room, room_temp: float, outside_temperatur: float
             # Bei Außenwänden: Verwende Außentemperatur
             delta_temp = room_temp - outside_temperatur
 
-        walls_list.append(calc_element_transmission(
-            building,
-            wall.orientation,
-            wall.construction_name,
-            wall_area_m2,
-            delta_temp,
-            deduction_area,
-        ))
+        walls_list.append(
+            calc_element_transmission(
+                building,
+                wall.orientation,
+                wall.construction_name,
+                wall_area_m2,
+                delta_temp,
+                deduction_area,
+            )
+        )
 
         # Fenster in dieser Wand
         for window in wall.windows:
-            walls_list.append(calc_element_transmission(
-                building,
-                f"{window.name} ({wall.orientation})",
-                window.construction_name,
-                window.area_m2,
-                delta_temp,
-            ))
+            walls_list.append(
+                calc_element_transmission(
+                    building,
+                    f"{window.name} ({wall.orientation})",
+                    window.construction_name,
+                    window.area_m2,
+                    delta_temp,
+                )
+            )
 
         # Türen in dieser Wand
         for door in wall.doors:
-            walls_list.append(calc_element_transmission(
-                building,
-                f"{door.name} ({wall.orientation})",
-                door.construction_name,
-                door.area_m2,
-                delta_temp,
-            ))
+            walls_list.append(
+                calc_element_transmission(
+                    building,
+                    f"{door.name} ({wall.orientation})",
+                    door.construction_name,
+                    door.area_m2,
+                    delta_temp,
+                )
+            )
 
     return walls_list
 

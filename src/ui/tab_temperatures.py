@@ -1,6 +1,7 @@
 """Tab für die Temperaturverwaltung."""
 
 import streamlit as st
+
 from src.models import Temperature
 from src.utils import save_building
 
@@ -21,20 +22,11 @@ def render_temperature_add_form() -> None:
         cols = st.columns([3, 2, 1])
 
         with cols[0]:
-            temp_name = st.text_input(
-                "Bezeichnung",
-                placeholder="z.B. Wohnraum, Außen, Keller, Bad",
-                key="temp_name"
-            )
+            temp_name = st.text_input("Bezeichnung", placeholder="z.B. Wohnraum, Außen, Keller, Bad", key="temp_name")
 
         with cols[1]:
             temp_value = st.number_input(
-                "Temperatur (°C)",
-                min_value=-30.0,
-                max_value=30.0,
-                value=20.0,
-                step=0.5,
-                key="temp_value"
+                "Temperatur (°C)", min_value=-30.0, max_value=30.0, value=20.0, step=0.5, key="temp_value"
             )
 
         with cols[2]:
@@ -80,10 +72,7 @@ def render_temperature_list() -> None:
         with cols[0]:
             # Inline-Edit für Namen
             new_name = st.text_input(
-                "Name",
-                value=temperature.name,
-                key=f"temp_name_edit_{idx}",
-                label_visibility="collapsed"
+                "Name", value=temperature.name, key=f"temp_name_edit_{idx}", label_visibility="collapsed"
             )
             if new_name != temperature.name:
                 temperature.name = new_name
@@ -98,7 +87,7 @@ def render_temperature_list() -> None:
                 max_value=30.0,
                 step=0.5,
                 key=f"temp_value_edit_{idx}",
-                label_visibility="collapsed"
+                label_visibility="collapsed",
             )
             if new_value != temperature.value_celsius:
                 temperature.value_celsius = new_value
@@ -176,14 +165,13 @@ def render_outside_temperature_selection() -> None:
             index=current_index,
             format_func=lambda name: f"{name} ({temp_by_name[name].value_celsius:.1f} °C)",
             key="outside_temp_select",
-            help="Siehe: https://www.waermepumpe.de/werkzeuge/klimakarte/"
+            help="Siehe: https://www.waermepumpe.de/werkzeuge/klimakarte/",
         )
 
-    if selected_name:
-        if st.session_state.building.outside_temperature_name != selected_name:
-            st.session_state.building.outside_temperature_name = selected_name
-            save_building(st.session_state.building)
-            st.rerun()
+    if selected_name and st.session_state.building.outside_temperature_name != selected_name:
+        st.session_state.building.outside_temperature_name = selected_name
+        save_building(st.session_state.building)
+        st.rerun()
 
 
 def render_default_room_temperature_selection() -> None:
@@ -212,14 +200,13 @@ def render_default_room_temperature_selection() -> None:
             index=current_index,
             format_func=lambda name: f"{name} ({temp_by_name[name].value_celsius:.1f} °C)",
             key="default_room_temp_select",
-            help="Diese Temperatur wird beim Erstellen neuer Räume vorgeschlagen."
+            help="Diese Temperatur wird beim Erstellen neuer Räume vorgeschlagen.",
         )
 
-    if selected_name:
-        if st.session_state.building.default_room_temperature_name != selected_name:
-            st.session_state.building.default_room_temperature_name = selected_name
-            save_building(st.session_state.building)
-            st.rerun()
+    if selected_name and st.session_state.building.default_room_temperature_name != selected_name:
+        st.session_state.building.default_room_temperature_name = selected_name
+        save_building(st.session_state.building)
+        st.rerun()
 
 
 def render_temperatures_tab() -> None:

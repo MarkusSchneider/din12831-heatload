@@ -1,13 +1,13 @@
 """Tab für den Heizlast-Report."""
 
-import streamlit as st
 import pandas as pd
-from typing import List, Tuple, Optional
-from src.din12831.calc_heat_load import calc_building_heat_load, RoomHeatLoadResult
+import streamlit as st
+
+from src.din12831.calc_heat_load import RoomHeatLoadResult, calc_building_heat_load
 from src.models import Building
 
 
-def _validate_building_data(building: Building) -> Optional[str]:
+def _validate_building_data(building: Building) -> str | None:
     """Validiert die Gebäudedaten und gibt eine Fehlermeldung zurück falls nötig.
 
     Args:
@@ -25,7 +25,7 @@ def _validate_building_data(building: Building) -> Optional[str]:
     return None
 
 
-def _create_rooms_dataframe(results: List[RoomHeatLoadResult]) -> pd.DataFrame:
+def _create_rooms_dataframe(results: list[RoomHeatLoadResult]) -> pd.DataFrame:
     """Erstellt einen DataFrame mit allen Räumen und deren Heizlasten.
 
     Args:
@@ -36,17 +36,19 @@ def _create_rooms_dataframe(results: List[RoomHeatLoadResult]) -> pd.DataFrame:
     """
     data = []
     for result in results:
-        data.append({
-            "Raum": result.room_name,
-            "Transmission [W]": f"{result.transmission_w:.0f}",
-            "Lüftung [W]": f"{result.ventilation_w:.0f}",
-            "Gesamt [W]": f"{result.total_w:.0f}",
-            "Gesamt [kW]": f"{result.total_w / 1000:.2f}"
-        })
+        data.append(
+            {
+                "Raum": result.room_name,
+                "Transmission [W]": f"{result.transmission_w:.0f}",
+                "Lüftung [W]": f"{result.ventilation_w:.0f}",
+                "Gesamt [W]": f"{result.total_w:.0f}",
+                "Gesamt [kW]": f"{result.total_w / 1000:.2f}",
+            }
+        )
     return pd.DataFrame(data)
 
 
-def _calculate_totals(results: List[RoomHeatLoadResult]) -> Tuple[float, float, float]:
+def _calculate_totals(results: list[RoomHeatLoadResult]) -> tuple[float, float, float]:
     """Berechnet die Gesamtsummen für Transmission, Lüftung und Heizlast.
 
     Args:
@@ -106,11 +108,7 @@ def _render_rooms_table(df: pd.DataFrame) -> None:
         df: DataFrame mit den Raumdaten
     """
     st.subheader("📋 Detaillierte Raumübersicht")
-    st.dataframe(
-        df,
-        width='stretch',
-        hide_index=True
-    )
+    st.dataframe(df, width="stretch", hide_index=True)
 
 
 def _render_room_details(result: RoomHeatLoadResult, is_last: bool) -> None:
@@ -125,22 +123,28 @@ def _render_room_details(result: RoomHeatLoadResult, is_last: bool) -> None:
     # Erstelle DataFrame für Bauteile
     element_data = []
     for element in result.element_transmissions:
-        element_data.append({
-            "Bauteil": element.element_name,
-            "U-Wert [W/(m²·K)]": f"{element.u_value_w_m2k:.3f}",
-            "U-Wert korr. [W/(m²·K)]": f"{element.u_value_corrected_w_m2k:.3f}",
-            "Fläche [m²]": f"{element.area_m2:.2f}",
-            "ΔT [K]": f"{element.delta_temp_k:.1f}",
-            "Transmission [W]": f"{element.transmission_w:.0f}"
-        })
+        element_data.append(
+            {
+                "Bauteil": element.element_name,
+                "U-Wert [W/(m²·K)]": f"{element.u_value_w_m2k:.3f}",
+                "U-Wert korr. [W/(m²·K)]": f"{element.u_value_corrected_w_m2k:.3f}",
+                "Fläche [m²]": f"{element.area_m2:.2f}",
+                "ΔT [K]": f"{element.delta_temp_k:.1f}",
+                "Transmission [W]": f"{element.transmission_w:.0f}",
+            }
+        )
 
     if element_data:
         element_df = pd.DataFrame(element_data)
         st.dataframe(
             element_df,
-            width='stretch',
+            width="stretch",
             hide_index=True,
-            column_config={"U-Wert korr. [W/(m²·K)]": st.column_config.TextColumn("U-Wert korr. [W/(m²·K)]", help="U-Wert mit Wärmebrückenzuschlag")}
+            column_config={
+                "U-Wert korr. [W/(m²·K)]": st.column_config.TextColumn(
+                    "U-Wert korr. [W/(m²·K)]", help="U-Wert mit Wärmebrückenzuschlag"
+                )
+            },
         )
     else:
         st.info("Keine Bauteile für diesen Raum definiert.")
@@ -158,7 +162,7 @@ def _render_room_details(result: RoomHeatLoadResult, is_last: bool) -> None:
         st.divider()
 
 
-def _render_detailed_room_view(results: List[RoomHeatLoadResult]) -> None:
+def _render_detailed_room_view(results: list[RoomHeatLoadResult]) -> None:
     """Zeigt die detaillierte Ansicht pro Raum und Bauteil in einem Expander an.
 
     Args:
@@ -166,7 +170,7 @@ def _render_detailed_room_view(results: List[RoomHeatLoadResult]) -> None:
     """
     with st.expander("🔍 Detaillierte Heizlast pro Raum und Bauteil", expanded=False):
         for i, result in enumerate(results):
-            is_last = (i == len(results) - 1)
+            is_last = i == len(results) - 1
             _render_room_details(result, is_last)
 
 

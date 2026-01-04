@@ -1,17 +1,18 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import ClassVar, Literal
+from typing import ClassVar
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
-
 
 # =============================================================================
 # Enumerations
 # =============================================================================
 
+
 class ConstructionType(str, Enum):
     """Bauteiltypen für Konstruktionen im Katalog."""
+
     EXTERNAL_WALL = "external_wall"
     INTERNAL_WALL = "internal_wall"
     CEILING = "ceiling"
@@ -22,6 +23,7 @@ class ConstructionType(str, Enum):
 
 class ElementType(str, Enum):
     """Elementtypen für konkrete Bauelemente in Räumen."""
+
     WINDOW = "window"
     DOOR = "door"
     CEILING = "ceiling"
@@ -32,8 +34,10 @@ class ElementType(str, Enum):
 # Hilfsklassen
 # =============================================================================
 
+
 class Temperature(BaseModel):
     """Temperatur-Referenzobjekt für wiederverwendbare Temperaturen."""
+
     name: str = Field(description="Bezeichnung der Temperatur (z.B. 'Wohnraum', 'Außen', 'Keller')")
     value_celsius: float = Field(description="Temperaturwert in °C")
 
@@ -47,6 +51,7 @@ class Ventilation(BaseModel):
 
     Definiert die Luftwechselrate für die Berechnung von Lüftungswärmeverlusten nach DIN 12831.
     """
+
     air_change_1_h: float = Field(default=0.5, ge=0.0, description="Luftwechsel n in 1/h")
 
 
@@ -58,6 +63,7 @@ class Area(BaseModel):
     zu angrenzenden Bauteilen für Brutto-Flächenberechnungen (Außenmaße).
     Wird verwendet für Räume mit komplexen Grundrissen (L-Form, etc.).
     """
+
     length_m: float = Field(ge=0)
     width_m: float = Field(ge=0)
 
@@ -97,13 +103,15 @@ class Area(BaseModel):
 # Fachliche Klassen
 # =============================================================================
 
+
 class Construction(BaseModel):
     """
     Bauteilkonstruktion mit U-Wert und optionaler Dicke.
 
-    Repräsentiert verschiedene Bauteile wie Außenwände, Innenwände, Fenster, Türen, Böden und Decken. 
+    Repräsentiert verschiedene Bauteile wie Außenwände, Innenwände, Fenster, Türen, Böden und Decken.
     Enthält thermische Eigenschaften und Validierung für dickenabhängige Berechnungen.
     """
+
     name: str
     element_type: ConstructionType = Field(default=ConstructionType.EXTERNAL_WALL, description="Bauteiltyp")
     u_value_w_m2k: float = Field(gt=0, description="U-Wert in W/(m²·K)")
@@ -113,16 +121,14 @@ class Construction(BaseModel):
         ConstructionType.EXTERNAL_WALL,
         ConstructionType.INTERNAL_WALL,
         ConstructionType.FLOOR,
-        ConstructionType.CEILING
+        ConstructionType.CEILING,
     }
 
-    @model_validator(mode='after')
+    @model_validator(mode="after")
     def validate_thickness(self):
         """Validiere, dass Wände, Böden und Decken eine Dicke haben."""
         if self.element_type in Construction._TYPES_REQUIRING_THICKNESS and self.thickness_m is None:
-            raise ValueError(
-                f"Construction type '{self.element_type.value}' requires thickness_m to be set"
-            )
+            raise ValueError(f"Construction type '{self.element_type.value}' requires thickness_m to be set")
         return self
 
     def get_adjacent_thickness(self) -> float:
@@ -156,9 +162,10 @@ class Element(BaseModel):
     """
     Einzelnes Bauelement wie Fenster, Tür, Boden oder Decke.
 
-    Repräsentiert ein konkretes Bauteil in einem Raum mit Abmessungen und Verknüpfung zum Konstruktionskatalog. 
+    Repräsentiert ein konkretes Bauteil in einem Raum mit Abmessungen und Verknüpfung zum Konstruktionskatalog.
     Fenster und Türen benötigen Breite und Höhe.
     """
+
     model_config = ConfigDict(from_attributes=True)
 
     type: ElementType
@@ -166,18 +173,17 @@ class Element(BaseModel):
     construction_name: str = Field(description="Name der Konstruktion aus Katalog")
     width_m: float | None = Field(default=None, gt=0, description="Breite in m")
     height_m: float | None = Field(default=None, gt=0, description="Höhe in m")
-    adjacent_temperature_name: str | None = Field(default=None, description="Name der Temperatur des angrenzenden Raums/Bereichs (z.B. für Boden/Decke)")
+    adjacent_temperature_name: str | None = Field(
+        default=None, description="Name der Temperatur des angrenzenden Raums/Bereichs (z.B. für Boden/Decke)"
+    )
 
     _TYPES_REQUIRING_DIMENSIONS: ClassVar[set[ElementType]] = {ElementType.WINDOW, ElementType.DOOR}
 
-    @model_validator(mode='after')
+    @model_validator(mode="after")
     def validate_dimensions(self):
         """Validiere, dass für Fenster und Türen Breite und Höhe angegeben sind."""
-        if self.type in Element._TYPES_REQUIRING_DIMENSIONS:
-            if self.width_m is None or self.height_m is None:
-                raise ValueError(
-                    f"{self.type} benötigt 'width_m' und 'height_m'"
-                )
+        if self.type in Element._TYPES_REQUIRING_DIMENSIONS and (self.width_m is None or self.height_m is None):
+            raise ValueError(f"{self.type} benötigt 'width_m' und 'height_m'")
         return self
 
     @property
@@ -194,6 +200,7 @@ class Wall(BaseModel):
     Repräsentiert eine Außen- oder Innenwand mit Netto-Abmessungen, Fenstern, Türen
     und Verknüpfungen zu angrenzenden Wänden für Brutto-Längenberechnungen.
     """
+
     model_config = ConfigDict(from_attributes=True)
 
     orientation: str = Field(description="Richtung/Bezeichnung (z.B. Nord, Ost, Süd 1, West 2)")
@@ -203,7 +210,9 @@ class Wall(BaseModel):
     doors: list[Element] = Field(default_factory=list, description="Türen in dieser Wand")
     left_wall_name: str = Field(description="Name der linken Nachbarwand (Bauteil aus Katalog)")
     right_wall_name: str = Field(description="Name der rechten Nachbarwand (Bauteil aus Katalog)")
-    adjacent_room_temperature_name: str | None = Field(default=None, description="Name der Temperatur des angrenzenden Raums (nur für Innenwände)")
+    adjacent_room_temperature_name: str | None = Field(
+        default=None, description="Name der Temperatur des angrenzenden Raums (nur für Innenwände)"
+    )
 
     def gross_length_m(self, building: Building) -> float:
         """
@@ -233,9 +242,10 @@ class Room(BaseModel):
     """
     Raum mit allen Bauelementen für Heizlastberechnung.
 
-    Repräsentiert einen Raum mit Grundflächen (Areas), Wänden, Boden, Decke und Lüftungsparametern. 
+    Repräsentiert einen Raum mit Grundflächen (Areas), Wänden, Boden, Decke und Lüftungsparametern.
     Berechnet Netto- und Bruttoflächen/-volumina für die Wärmeverlustberechnung nach DIN 12831.
     """
+
     name: str
     areas: list[Area] | None = Field(
         default=None,
@@ -315,14 +325,17 @@ class Room(BaseModel):
 class Building(BaseModel):
     """Gebäude mit Katalogen und Räumen.
 
-    Zentrales Objekt für die Heizlastberechnung nach DIN 12831. 
+    Zentrales Objekt für die Heizlastberechnung nach DIN 12831.
     Enthält Temperatur- und Konstruktionskataloge sowie alle Räume des Gebäudes.
     Verwaltet globale Parameter wie Wärmebrückenzuschlag.
     """
+
     name: str
     temperature_catalog: list[Temperature] = Field(default_factory=list, description="Temperaturkatalog")
     outside_temperature_name: str | None = Field(default=None, description="Name der Normaußentemperatur aus Katalog")
-    default_room_temperature_name: str | None = Field(default=None, description="Name der Standard-Raumtemperatur aus Katalog")
+    default_room_temperature_name: str | None = Field(
+        default=None, description="Name der Standard-Raumtemperatur aus Katalog"
+    )
     construction_catalog: list[Construction] = Field(default_factory=list, description="Bauteilkatalog")
     thermal_bridge_surcharge: float = Field(default=0.05, ge=0, description="Wärmebrückenzuschlag (größer als 0)")
     rooms: list[Room] = Field(default_factory=list)
@@ -359,6 +372,7 @@ class Building(BaseModel):
 # =============================================================================
 # Hilfsfunktionen
 # =============================================================================
+
 
 def get_adjacent_thickness(building: Building, adjacent_name: str) -> float:
     """

@@ -1,6 +1,7 @@
 """Tab für den Bauteilkatalog."""
 
 import streamlit as st
+
 from src.models import Construction, ConstructionType
 from src.utils import save_building
 
@@ -42,11 +43,18 @@ def render_catalog_add_form() -> None:
             catalog_u = st.number_input("U-Wert (W/m²K)", min_value=0.01, value=0.24, step=0.01, key="catalog_u")
 
         # Dicke nur für Wand, Decke, Boden anzeigen
-        has_thickness = element_type in [ConstructionType.EXTERNAL_WALL, ConstructionType.INTERNAL_WALL, ConstructionType.CEILING, ConstructionType.FLOOR]
+        has_thickness = element_type in [
+            ConstructionType.EXTERNAL_WALL,
+            ConstructionType.INTERNAL_WALL,
+            ConstructionType.CEILING,
+            ConstructionType.FLOOR,
+        ]
         catalog_thickness = None
         if has_thickness:
             with cols[3]:
-                catalog_thickness = st.number_input("Dicke (m)", min_value=0.00, value=0.30, step=0.01, key="catalog_thickness")
+                catalog_thickness = st.number_input(
+                    "Dicke (m)", min_value=0.00, value=0.30, step=0.01, key="catalog_thickness"
+                )
 
         if st.button("Konstruktion hinzufügen", type="primary", key="add_catalog"):
             if not catalog_name:
@@ -71,8 +79,7 @@ def render_catalog_list() -> None:
     catalog = st.session_state.building.construction_catalog
 
     if not catalog:
-        st.info(
-            "👆 Fügen Sie Konstruktionen zu Ihrem Katalog hinzu, um sie bei der Raumplanung wiederzuverwenden.")
+        st.info("👆 Fügen Sie Konstruktionen zu Ihrem Katalog hinzu, um sie bei der Raumplanung wiederzuverwenden.")
         return
 
     st.subheader(f"Vorhandene Konstruktionen ({len(catalog)})")
@@ -83,7 +90,7 @@ def render_catalog_list() -> None:
         ConstructionType.CEILING: "Decke",
         ConstructionType.FLOOR: "Boden",
         ConstructionType.WINDOW: "Fenster",
-        ConstructionType.DOOR: "Tür"
+        ConstructionType.DOOR: "Tür",
     }
 
     for idx, construction in enumerate(catalog):
@@ -108,8 +115,7 @@ def render_catalog_list() -> None:
 def render_catalog_tab() -> None:
     """Rendert den kompletten Bauteilkatalog-Tab."""
     st.header("Bauteilkatalog")
-    st.caption(
-        "Verwalten Sie wiederverwendbare Konstruktionen für Wände, Fenster, Türen, etc.")
+    st.caption("Verwalten Sie wiederverwendbare Konstruktionen für Wände, Fenster, Türen, etc.")
 
     render_catalog_add_form()
     st.divider()

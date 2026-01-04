@@ -1,7 +1,7 @@
 """Test script to verify the launcher works correctly before building executable."""
 
-import sys
 import subprocess
+import sys
 from pathlib import Path
 
 

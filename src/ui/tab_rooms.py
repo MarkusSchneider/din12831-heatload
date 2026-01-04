@@ -1,18 +1,19 @@
 """Tab für die Räume - Refaktorierte Version mit kleineren, fokussierten Funktionen."""
 
-import streamlit as st
+from typing import cast
+
 import pandas as pd
-from typing import cast, Optional
-from src.models import Room, Element, Ventilation, Area, ConstructionType, Wall, ElementType, Temperature
+import streamlit as st
+
 from src.din12831.calc_heat_load import calc_room_heat_load
-from src.utils import save_building, get_catalog_by_type
+from src.models import Area, ConstructionType, Element, ElementType, Room, Temperature, Ventilation, Wall
+from src.utils import get_catalog_by_type, save_building
 
 
 # ============================================================================
 # Helper Funktionen für Temperatur- und Katalog-Handling
 # ============================================================================
-
-def format_temperature(temp: Optional[Temperature]) -> str:
+def format_temperature(temp: Temperature | None) -> str:
     """Formatiert eine Temperatur für die Anzeige."""
     if temp:
         return f"{temp.name} ({temp.value_celsius:.1f} °C)"
@@ -45,10 +46,10 @@ def get_wall_catalog():
 # ============================================================================
 # Render-Funktionen für Boden und Decke
 # ============================================================================
-
-def render_adjacent_temperature_info(element: Optional[Element], label: str) -> str:
+def render_adjacent_temperature_info(element: Element | None, label: str) -> str:
     """Zeigt Informationen zur angrenzenden Temperatur eines Bauteils."""
     if not element or not element.adjacent_temperature_name:
+        return ""
         return ""
 
     adj_temp = st.session_state.building.get_temperature_by_name(element.adjacent_temperature_name)
@@ -94,12 +95,12 @@ def render_room_floor_ceiling_assignment(room: Room) -> None:
 # ============================================================================
 # Formularkomponenten für neuen Raum
 # ============================================================================
-
-def render_temperature_selector(key: str, label: str = "Raumtemperatur") -> Optional[str]:
+def render_temperature_selector(key: str, label: str = "Raumtemperatur") -> str | None:
     """Zeigt einen Temperatur-Auswahldialog."""
     temp_catalog = st.session_state.building.temperature_catalog
     if not temp_catalog:
         st.error("Bitte zuerst Temperaturen im Temperaturkatalog anlegen.")
+        return None
         return None
 
     temp_by_name = get_temperature_options()
@@ -110,17 +111,14 @@ def render_temperature_selector(key: str, label: str = "Raumtemperatur") -> Opti
         options=list(temp_by_name.keys()),
         index=default_index,
         format_func=lambda name: f"{name} ({temp_by_name[name].value_celsius:.1f} °C)",
-        key=key
+        key=key,
     )
     return selected_temp_name
 
 
-def render_construction_selector(
-    construction_type: ConstructionType,
-    key: str,
-    label: str
-) -> Optional[str]:
+def render_construction_selector(construction_type: ConstructionType, key: str, label: str) -> str | None:
     """Zeigt einen Konstruktions-Auswahldialog."""
+    options = get_catalog_by_type(construction_type)
     options = get_catalog_by_type(construction_type)
 
     if not options:
@@ -128,32 +126,23 @@ def render_construction_selector(
         st.error(f"Im Bauteilkatalog fehlt mindestens eine {type_name}-Konstruktion.")
         return None
 
-    return st.selectbox(
-        label,
-        options=[c.name for c in options],
-        key=key,
-        help=f"Aufbau des {label}"
-    )
+    return st.selectbox(label, options=[c.name for c in options], key=key, help=f"Aufbau des {label}")
 
 
-def render_floor_ceiling_selectors() -> tuple[Optional[str], Optional[str], Optional[str], Optional[str]]:
+def render_floor_ceiling_selectors() -> tuple[str | None, str | None, str | None, str | None]:
     """Zeigt Auswahldialoge für Boden und Decke."""
     # Boden-Sektion
+    st.write("**Boden:**")
     st.write("**Boden:**")
     col_floor_1, col_floor_2 = st.columns(2)
 
     with col_floor_1:
         floor_construction = render_construction_selector(
-            ConstructionType.FLOOR,
-            "new_room_floor_construction",
-            "Konstruktion"
+            ConstructionType.FLOOR, "new_room_floor_construction", "Konstruktion"
         )
 
     with col_floor_2:
-        floor_temp = render_temperature_selector(
-            "new_floor_adjacent_temp",
-            "Angrenzende Temperatur"
-        )
+        floor_temp = render_temperature_selector("new_floor_adjacent_temp", "Angrenzende Temperatur")
 
     # Decken-Sektion
     st.write("**Decke:**")
@@ -161,16 +150,11 @@ def render_floor_ceiling_selectors() -> tuple[Optional[str], Optional[str], Opti
 
     with col_ceiling_1:
         ceiling_construction = render_construction_selector(
-            ConstructionType.CEILING,
-            "new_room_ceiling_construction",
-            "Konstruktion"
+            ConstructionType.CEILING, "new_room_ceiling_construction", "Konstruktion"
         )
 
     with col_ceiling_2:
-        ceiling_temp = render_temperature_selector(
-            "new_ceiling_adjacent_temp",
-            "Angrenzende Temperatur"
-        )
+        ceiling_temp = render_temperature_selector("new_ceiling_adjacent_temp", "Angrenzende Temperatur")
 
     return floor_construction, floor_temp, ceiling_construction, ceiling_temp
 
@@ -184,11 +168,9 @@ def render_rectangle_editor(rect_id: int, rect_ids: list[int]) -> Area:
     if "Trennung" not in wall_catalog_names:
         # Add Trennung construction if it doesn't exist
         from src.models import Construction, ConstructionType
+
         trennung = Construction(
-            name="Trennung",
-            element_type=ConstructionType.INTERNAL_WALL,
-            u_value_w_m2k=1.0,
-            thickness_m=0.0
+            name="Trennung", element_type=ConstructionType.INTERNAL_WALL, u_value_w_m2k=1.0, thickness_m=0.0
         )
         if trennung.name not in [c.name for c in st.session_state.building.construction_catalog]:
             st.session_state.building.construction_catalog.append(trennung)
@@ -211,12 +193,12 @@ def render_rectangle_editor(rect_id: int, rect_ids: list[int]) -> Area:
                 "Konstruktion Oben",
                 options=wall_catalog_names,
                 key=f"new_room_rect_{rect_id}_top",
-                help="Aufbau Wand oben vom Rechteck"
+                help="Aufbau Wand oben vom Rechteck",
             )
     with row1[2]:
         if len(rect_ids) > 1 and st.button("🗑️", key=f"new_room_rect_{rect_id}_del"):
             rect_ids.remove(rect_id)
-            st.session_state[f"new_room_rect_ids"] = rect_ids
+            st.session_state["new_room_rect_ids"] = rect_ids
             st.rerun()
 
     # Zeile 2: Links - Rechteck-Darstellung - Rechts
@@ -233,7 +215,7 @@ def render_rectangle_editor(rect_id: int, rect_ids: list[int]) -> Area:
             "Konstruktion Links",
             options=wall_catalog_names,
             key=f"new_room_rect_{rect_id}_left",
-            help="Aufbau Wand links vom Rechteck"
+            help="Aufbau Wand links vom Rechteck",
         )
     with row2[1]:
         st.markdown(
@@ -243,14 +225,14 @@ def render_rectangle_editor(rect_id: int, rect_ids: list[int]) -> Area:
                 <p style='margin: 0; font-size: 12px; color: #666;'>Rechteck</p>
             </div>
             """,
-            unsafe_allow_html=True
+            unsafe_allow_html=True,
         )
     with row2[2]:
         right_wall = st.selectbox(
             "Konstruktion Rechts",
             options=wall_catalog_names,
             key=f"new_room_rect_{rect_id}_right",
-            help="Aufbau Wand rechts vom Rechteck"
+            help="Aufbau Wand rechts vom Rechteck",
         )
 
     # Zeile 3: Unten (Bauteil, zentriert)
@@ -260,7 +242,7 @@ def render_rectangle_editor(rect_id: int, rect_ids: list[int]) -> Area:
             "Konstruktion Unten",
             options=wall_catalog_names,
             key=f"new_room_rect_{rect_id}_bottom",
-            help="Aufbau Wand unten vom Rechteck"
+            help="Aufbau Wand unten vom Rechteck",
         )
 
     st.divider()
@@ -299,14 +281,11 @@ def render_areas_section() -> list[Area]:
 
 
 def validate_new_room_inputs(
-    room_name: str,
-    rectangles: list[Area],
-    temp_name: Optional[str],
-    floor_constr: Optional[str],
-    ceiling_constr: Optional[str]
-) -> Optional[str]:
+    room_name: str, rectangles: list[Area], temp_name: str | None, floor_constr: str | None, ceiling_constr: str | None
+) -> str | None:
     """Validiert die Eingaben für einen neuen Raum. Gibt Fehlermeldung zurück oder None."""
     if not room_name:
+        return "Bitte geben Sie einen Raumnamen ein."
         return "Bitte geben Sie einen Raumnamen ein."
 
     if not rectangles:
@@ -334,7 +313,7 @@ def create_new_room(
     floor_constr: str,
     floor_temp: str,
     ceiling_constr: str,
-    ceiling_temp: str
+    ceiling_temp: str,
 ) -> Room:
     """Erstellt ein neues Room-Objekt."""
     new_room = Room(
@@ -342,7 +321,7 @@ def create_new_room(
         areas=rectangles,
         net_height_m=height,
         room_temperature_name=temp_name,
-        ventilation=Ventilation(air_change_1_h=air_change)
+        ventilation=Ventilation(air_change_1_h=air_change),
     )
 
     new_room.floor = Element(
@@ -384,8 +363,7 @@ def render_room_add_form() -> None:
             rectangles_payload = render_areas_section()
 
         with col2:
-            new_height = st.number_input(
-                "Höhe (m)", min_value=0.1, value=2.5, step=0.1, key="new_height")
+            new_height = st.number_input("Höhe (m)", min_value=0.1, value=2.5, step=0.1, key="new_height")
 
             selected_temp_name = render_temperature_selector("new_temp")
 
@@ -395,7 +373,7 @@ def render_room_add_form() -> None:
                 value=0.5,
                 step=0.1,
                 key="new_air_change",
-                help="Anzahl der Luftwechsel pro Stunde. Die Norm empfiehlt mindestens 0.5 1/h für Wohnräume."
+                help="Anzahl der Luftwechsel pro Stunde. Die Norm empfiehlt mindestens 0.5 1/h für Wohnräume.",
             )
 
             floor_constr, floor_temp, ceiling_constr, ceiling_temp = render_floor_ceiling_selectors()
@@ -405,11 +383,7 @@ def render_room_add_form() -> None:
 
         # Validierung
         error = validate_new_room_inputs(
-            new_room_name,
-            rectangles_payload,
-            selected_temp_name,
-            floor_constr,
-            ceiling_constr
+            new_room_name, rectangles_payload, selected_temp_name, floor_constr, ceiling_constr
         )
 
         if error:
@@ -433,7 +407,7 @@ def render_room_add_form() -> None:
             floor_constr,
             floor_temp,
             ceiling_constr,
-            ceiling_temp
+            ceiling_temp,
         )
 
         st.session_state.building.rooms.append(new_room)
@@ -447,6 +421,7 @@ def render_room_add_form() -> None:
 # Heizlasten-Anzeige
 # ============================================================================
 
+
 def render_heat_load_metrics(result) -> None:
     """Zeigt die Heizlast-Metriken in drei Spalten."""
     heat_col1, heat_col2, heat_col3 = st.columns(3)
@@ -455,19 +430,13 @@ def render_heat_load_metrics(result) -> None:
         st.metric(
             "Transmissionswärmeverlust",
             f"{result.transmission_w:.0f} W",
-            help="Wärmeverlust durch Bauteile (Wände, Decke, Boden, Fenster, Türen)"
+            help="Wärmeverlust durch Bauteile (Wände, Decke, Boden, Fenster, Türen)",
         )
     with heat_col2:
-        st.metric(
-            "Lüftungswärmeverlust",
-            f"{result.ventilation_w:.0f} W",
-            help="Wärmeverlust durch Luftwechsel"
-        )
+        st.metric("Lüftungswärmeverlust", f"{result.ventilation_w:.0f} W", help="Wärmeverlust durch Luftwechsel")
     with heat_col3:
         st.metric(
-            "Gesamt-Heizlast",
-            f"{result.total_w:.0f} W",
-            help="Summe aus Transmissions- und Lüftungswärmeverlust"
+            "Gesamt-Heizlast", f"{result.total_w:.0f} W", help="Summe aus Transmissions- und Lüftungswärmeverlust"
         )
 
 
@@ -481,26 +450,27 @@ def render_element_transmission_details(result) -> None:
 
         element_data = []
         for element in result.element_transmissions:
-            element_data.append({
-                "Bauteil": element.element_name,
-                "Fläche [m²]": f"{element.area_m2:.2f}",
-                "U-Wert [W/(m²·K)]": f"{element.u_value_w_m2k:.2f}",
-                "U-Wert korr. [W/(m²·K)]": f"{element.u_value_corrected_w_m2k:.2f}",
-                "ΔT [K]": f"{element.delta_temp_k:.1f}",
-                "Wärmeverlust [W]": f"{element.transmission_w:.0f}"
-            })
+            element_data.append(
+                {
+                    "Bauteil": element.element_name,
+                    "Fläche [m²]": f"{element.area_m2:.2f}",
+                    "U-Wert [W/(m²·K)]": f"{element.u_value_w_m2k:.2f}",
+                    "U-Wert korr. [W/(m²·K)]": f"{element.u_value_corrected_w_m2k:.2f}",
+                    "ΔT [K]": f"{element.delta_temp_k:.1f}",
+                    "Wärmeverlust [W]": f"{element.transmission_w:.0f}",
+                }
+            )
 
         element_df = pd.DataFrame(element_data)
         st.dataframe(
             element_df,
-            width='stretch',
+            width="stretch",
             hide_index=True,
             column_config={
                 "U-Wert korr. [W/(m²·K)]": st.column_config.TextColumn(
-                    "U-Wert korr. [W/(m²·K)]",
-                    help="U-Wert mit Wärmebrückenzuschlag"
+                    "U-Wert korr. [W/(m²·K)]", help="U-Wert mit Wärmebrückenzuschlag"
                 )
-            }
+            },
         )
 
 
@@ -508,9 +478,7 @@ def render_room_heat_loads(room: Room, room_idx: int) -> None:
     """Berechnet und zeigt die Heizlasten eines Raums."""
     try:
         result = calc_room_heat_load(
-            room,
-            st.session_state.building.outside_temperature.value_celsius,
-            st.session_state.building
+            room, st.session_state.building.outside_temperature.value_celsius, st.session_state.building
         )
 
         st.subheader("🔥 Heizlasten")
@@ -526,6 +494,7 @@ def render_room_heat_loads(room: Room, room_idx: int) -> None:
 # Raum-Informationen
 # ============================================================================
 
+
 def render_room_update_form(room: Room, room_idx: int) -> None:
     """Zeigt Formular zum Aktualisieren der Raum-Grunddaten."""
     with st.form(key=f"update_room_form_{room_idx}"):
@@ -534,18 +503,10 @@ def render_room_update_form(room: Room, room_idx: int) -> None:
         col1, col2 = st.columns(2)
 
         with col1:
-            updated_name = st.text_input(
-                "Raumname",
-                value=room.name,
-                key=f"update_room_name_{room_idx}"
-            )
+            updated_name = st.text_input("Raumname", value=room.name, key=f"update_room_name_{room_idx}")
 
             updated_height = st.number_input(
-                "Höhe (m)",
-                min_value=0.1,
-                value=room.net_height_m,
-                step=0.1,
-                key=f"update_room_height_{room_idx}"
+                "Höhe (m)", min_value=0.1, value=room.net_height_m, step=0.1, key=f"update_room_height_{room_idx}"
             )
 
         with col2:
@@ -559,7 +520,7 @@ def render_room_update_form(room: Room, room_idx: int) -> None:
                 options=list(temp_options.keys()),
                 index=current_temp_idx,
                 format_func=lambda name: f"{name} ({temp_options[name].value_celsius:.1f} °C)",
-                key=f"update_room_temp_{room_idx}"
+                key=f"update_room_temp_{room_idx}",
             )
 
             updated_air_change = st.number_input(
@@ -567,7 +528,7 @@ def render_room_update_form(room: Room, room_idx: int) -> None:
                 min_value=0.0,
                 value=room.ventilation.air_change_1_h,
                 step=0.1,
-                key=f"update_room_air_change_{room_idx}"
+                key=f"update_room_air_change_{room_idx}",
             )
 
         button_cols = st.columns([9, 1])
@@ -633,6 +594,7 @@ def render_room_info(room: Room, room_idx: int) -> None:
 # Flächen-Editor
 # ============================================================================
 
+
 def render_area_info(area: Area, area_idx: int, total_areas: int) -> None:
     """Zeigt Informationen zu einer Fläche."""
     net_area = area.area_m2
@@ -689,6 +651,7 @@ def render_room_areas_editor(room: Room, room_idx: int) -> None:
 # Wände-Sektion
 # ============================================================================
 
+
 def render_wall_header_and_toggle(room_idx: int) -> bool:
     """Zeigt Header und Toggle-Button für Wände. Gibt zurück ob Formular angezeigt werden soll."""
     form_state_key = f"show_wall_form_{room_idx}"
@@ -699,16 +662,14 @@ def render_wall_header_and_toggle(room_idx: int) -> bool:
         st.subheader("Wände")
     with header_cols[1]:
         st.write("")
-        if st.button("➕" if not show_form else "✖️",
-                     key=f"toggle_wall_form_{room_idx}",
-                     type="secondary"):
+        if st.button("➕" if not show_form else "✖️", key=f"toggle_wall_form_{room_idx}", type="secondary"):
             st.session_state[form_state_key] = not show_form
             st.rerun()
 
     return show_form
 
 
-def render_wall_update_form(room: Room, room_idx: int, wall: Wall, wall_idx: int) -> None:
+def render_wall_update_form(room_idx: int, wall: Wall, wall_idx: int) -> None:
     """Zeigt Formular zum Aktualisieren einer Wand."""
     with st.form(key=f"update_wall_form_{room_idx}_{wall_idx}"):
         st.write("**Wand bearbeiten:**")
@@ -720,9 +681,7 @@ def render_wall_update_form(room: Room, room_idx: int, wall: Wall, wall_idx: int
 
         with col1:
             updated_orientation = st.text_input(
-                "Richtung / Bezeichnung",
-                value=wall.orientation,
-                key=f"update_wall_orientation_{room_idx}_{wall_idx}"
+                "Richtung / Bezeichnung", value=wall.orientation, key=f"update_wall_orientation_{room_idx}_{wall_idx}"
             )
 
             updated_length = st.number_input(
@@ -730,16 +689,18 @@ def render_wall_update_form(room: Room, room_idx: int, wall: Wall, wall_idx: int
                 min_value=0.1,
                 value=wall.net_length_m,
                 step=0.1,
-                key=f"update_wall_length_{room_idx}_{wall_idx}"
+                key=f"update_wall_length_{room_idx}_{wall_idx}",
             )
 
         with col2:
-            current_constr_idx = list(wall_by_name.keys()).index(wall.construction_name) if wall.construction_name in wall_by_name else 0
+            current_constr_idx = (
+                list(wall_by_name.keys()).index(wall.construction_name) if wall.construction_name in wall_by_name else 0
+            )
             updated_construction = st.selectbox(
                 "Aufbau",
                 options=list(wall_by_name.keys()),
                 index=current_constr_idx,
-                key=f"update_wall_constr_{room_idx}_{wall_idx}"
+                key=f"update_wall_constr_{room_idx}_{wall_idx}",
             )
 
             selected_construction = wall_by_name[updated_construction]
@@ -756,7 +717,7 @@ def render_wall_update_form(room: Room, room_idx: int, wall: Wall, wall_idx: int
                     options=list(temp_options.keys()),
                     index=current_temp_idx,
                     format_func=lambda name: f"{name} ({temp_options[name].value_celsius:.1f} °C)",
-                    key=f"update_wall_adj_temp_{room_idx}_{wall_idx}"
+                    key=f"update_wall_adj_temp_{room_idx}_{wall_idx}",
                 )
 
         st.write("**Angrenzende Wände:**")
@@ -769,16 +730,18 @@ def render_wall_update_form(room: Room, room_idx: int, wall: Wall, wall_idx: int
                 "Nachbarwand Links",
                 options=wall_catalog_names,
                 index=left_idx,
-                key=f"update_wall_left_{room_idx}_{wall_idx}"
+                key=f"update_wall_left_{room_idx}_{wall_idx}",
             )
 
         with neighbor_cols[1]:
-            right_idx = wall_catalog_names.index(wall.right_wall_name) if wall.right_wall_name in wall_catalog_names else 0
+            right_idx = (
+                wall_catalog_names.index(wall.right_wall_name) if wall.right_wall_name in wall_catalog_names else 0
+            )
             updated_right_wall = st.selectbox(
                 "Nachbarwand Rechts",
                 options=wall_catalog_names,
                 index=right_idx,
-                key=f"update_wall_right_{room_idx}_{wall_idx}"
+                key=f"update_wall_right_{room_idx}_{wall_idx}",
             )
 
         button_cols = st.columns([9, 1])
@@ -792,7 +755,7 @@ def render_wall_update_form(room: Room, room_idx: int, wall: Wall, wall_idx: int
                 updated_left_wall,
                 updated_right_wall,
                 selected_construction,
-                updated_adj_temp
+                updated_adj_temp,
             )
 
             if error:
@@ -836,7 +799,7 @@ def render_wall_item(room: Room, room_idx: int, wall: Wall, wall_idx: int) -> No
 
         # Update-Formular oder Info anzeigen
         if show_update:
-            render_wall_update_form(room, room_idx, wall, wall_idx)
+            render_wall_update_form(room_idx, wall, wall_idx)
         else:
             cols = st.columns([2, 2, 1])
 
@@ -845,11 +808,14 @@ def render_wall_item(room: Room, room_idx: int, wall: Wall, wall_idx: int) -> No
                 st.write(f"**Konstruktion:** {wall.construction_name}")
 
                 # Zeige Temperatur bei Innenwänden
-                if wall_construction and wall_construction.element_type == ConstructionType.INTERNAL_WALL:
-                    if wall.adjacent_room_temperature_name:
-                        adj_temp = st.session_state.building.get_temperature_by_name(wall.adjacent_room_temperature_name)
-                        if adj_temp:
-                            st.write(f"**Angrenzender Raum:** {format_temperature(adj_temp)}")
+                if (
+                    wall_construction
+                    and wall_construction.element_type == ConstructionType.INTERNAL_WALL
+                    and wall.adjacent_room_temperature_name
+                ):
+                    adj_temp = st.session_state.building.get_temperature_by_name(wall.adjacent_room_temperature_name)
+                    if adj_temp:
+                        st.write(f"**Angrenzender Raum:** {format_temperature(adj_temp)}")
 
             with cols[1]:
                 if wall_construction:
@@ -933,13 +899,7 @@ def render_wall_length_selector(room: Room, room_idx: int) -> float:
     wall_length_key = f"wall_length_input_{room_idx}"
 
     if not areas:
-        return st.number_input(
-            "Länge (m)",
-            min_value=0.1,
-            value=4.0,
-            step=0.1,
-            key=f"wall_length_manual_{room_idx}"
-        )
+        return st.number_input("Länge (m)", min_value=0.1, value=4.0, step=0.1, key=f"wall_length_manual_{room_idx}")
 
     # Zeige alle Dropdowns in einer Zeile
     num_cols = len(areas) + 1
@@ -949,17 +909,10 @@ def render_wall_length_selector(room: Room, room_idx: int) -> float:
     for rect_idx, area in enumerate(areas, 1):
         with cols_dims[rect_idx]:
             rect_name = f"Fläche {rect_idx}" if len(areas) > 1 else "Fläche"
-            options = [
-                "Nicht verwenden",
-                f"Länge ({area.length_m:.2f} m)",
-                f"Breite ({area.width_m:.2f} m)"
-            ]
+            options = ["Nicht verwenden", f"Länge ({area.length_m:.2f} m)", f"Breite ({area.width_m:.2f} m)"]
 
             st.selectbox(
-                rect_name,
-                options=options,
-                key=f"wall_length_rect_{room_idx}_{rect_idx}",
-                label_visibility="visible"
+                rect_name, options=options, key=f"wall_length_rect_{room_idx}_{rect_idx}", label_visibility="visible"
             )
 
     # Berechne Gesamtlänge
@@ -990,7 +943,7 @@ def render_wall_neighbor_selectors(room_idx: int, wall_options: list) -> tuple[s
             "Aufbau Nachbarwand Links",
             options=wall_catalog_names,
             key=f"wall_left_{room_idx}",
-            help="Wählen Sie das Wandbauteil aus dem Katalog, das links angrenzt"
+            help="Wählen Sie das Wandbauteil aus dem Katalog, das links angrenzt",
         )
 
     with cols2[1]:
@@ -998,22 +951,18 @@ def render_wall_neighbor_selectors(room_idx: int, wall_options: list) -> tuple[s
             "Aufbau Nachbarwand Rechts",
             options=wall_catalog_names,
             key=f"wall_right_{room_idx}",
-            help="Wählen Sie das Wandbauteil aus dem Katalog, das rechts angrenzt"
+            help="Wählen Sie das Wandbauteil aus dem Katalog, das rechts angrenzt",
         )
 
     return left_wall_name, right_wall_name
 
 
 def validate_wall_inputs(
-    orientation: str,
-    length: float,
-    left_wall: str,
-    right_wall: str,
-    construction,
-    adjacent_temp: Optional[str]
-) -> Optional[str]:
+    orientation: str, length: float, left_wall: str, right_wall: str, construction, adjacent_temp: str | None
+) -> str | None:
     """Validiert Wand-Eingaben. Gibt Fehlermeldung zurück oder None."""
     if not orientation or orientation.strip() == "":
+        return "Bitte geben Sie eine Richtung / Bezeichnung für die Wand ein."
         return "Bitte geben Sie eine Richtung / Bezeichnung für die Wand ein."
 
     if length <= 0:
@@ -1052,14 +1001,12 @@ def render_wall_add_form(room: Room, room_idx: int, wall_options: list) -> None:
                 "Richtung / Bezeichnung",
                 value="",
                 key=f"wall_orientation_{room_idx}",
-                placeholder="z.B. Norden, Osten, Süden 1, Westen 2"
+                placeholder="z.B. Norden, Osten, Süden 1, Westen 2",
             )
 
         with cols[1]:
             selected_wall_constr = st.selectbox(
-                "Aufbau",
-                options=list(wall_by_name.keys()),
-                key=f"wall_constr_{room_idx}"
+                "Aufbau", options=list(wall_by_name.keys()), key=f"wall_constr_{room_idx}"
             )
 
         # Temperatur des angrenzenden Raums (nur bei Innenwand)
@@ -1069,8 +1016,7 @@ def render_wall_add_form(room: Room, room_idx: int, wall_options: list) -> None:
         if selected_construction.element_type == ConstructionType.INTERNAL_WALL:
             with cols[2]:
                 adjacent_temp_name = render_temperature_selector(
-                    f"adjacent_temp_{room_idx}",
-                    "Temperatur des angrenzenden Raums"
+                    f"adjacent_temp_{room_idx}", "Temperatur des angrenzenden Raums"
                 )
 
         # Wandlänge
@@ -1087,12 +1033,7 @@ def render_wall_add_form(room: Room, room_idx: int, wall_options: list) -> None:
     # Validierung und Hinzufügen
     if add_wall:
         error = validate_wall_inputs(
-            wall_orientation,
-            wall_length,
-            left_wall_name,
-            right_wall_name,
-            selected_construction,
-            adjacent_temp_name
+            wall_orientation, wall_length, left_wall_name, right_wall_name, selected_construction, adjacent_temp_name
         )
 
         if error:
@@ -1139,6 +1080,7 @@ def render_walls_section(room: Room, room_idx: int) -> None:
 # Fenster & Türen (Wandöffnungen)
 # ============================================================================
 
+
 def render_opening_header_and_toggle(room_idx: int, wall_idx: int) -> bool:
     """Zeigt Header und Toggle für Wandöffnungen."""
     form_state_key = f"show_opening_form_{room_idx}_{wall_idx}"
@@ -1148,9 +1090,9 @@ def render_opening_header_and_toggle(room_idx: int, wall_idx: int) -> bool:
     with header_cols[0]:
         st.write("**Fenster & Türen**")
     with header_cols[1]:
-        if st.button("➕" if not show_form else "✖️",
-                     key=f"toggle_opening_form_{room_idx}_{wall_idx}",
-                     type="secondary"):
+        if st.button(
+            "➕" if not show_form else "✖️", key=f"toggle_opening_form_{room_idx}_{wall_idx}", type="secondary"
+        ):
             st.session_state[form_state_key] = not show_form
             st.rerun()
 
@@ -1167,9 +1109,7 @@ def render_window_update_form(wall: Wall, room_idx: int, wall_idx: int, win_idx:
 
         with cols[0]:
             updated_name = st.text_input(
-                "Name",
-                value=window.name,
-                key=f"update_window_name_{room_idx}_{wall_idx}_{win_idx}"
+                "Name", value=window.name, key=f"update_window_name_{room_idx}_{wall_idx}_{win_idx}"
             )
 
         with cols[1]:
@@ -1178,7 +1118,7 @@ def render_window_update_form(wall: Wall, room_idx: int, wall_idx: int, win_idx:
                 min_value=0.1,
                 value=window.width_m or 1.2,
                 step=0.1,
-                key=f"update_window_width_{room_idx}_{wall_idx}_{win_idx}"
+                key=f"update_window_width_{room_idx}_{wall_idx}_{win_idx}",
             )
 
         with cols[2]:
@@ -1187,16 +1127,20 @@ def render_window_update_form(wall: Wall, room_idx: int, wall_idx: int, win_idx:
                 min_value=0.1,
                 value=window.height_m or 1.5,
                 step=0.1,
-                key=f"update_window_height_{room_idx}_{wall_idx}_{win_idx}"
+                key=f"update_window_height_{room_idx}_{wall_idx}_{win_idx}",
             )
 
         with cols[3]:
-            current_constr_idx = list(window_by_name.keys()).index(window.construction_name) if window.construction_name in window_by_name else 0
+            current_constr_idx = (
+                list(window_by_name.keys()).index(window.construction_name)
+                if window.construction_name in window_by_name
+                else 0
+            )
             updated_construction = st.selectbox(
                 "Konstruktion",
                 options=list(window_by_name.keys()),
                 index=current_constr_idx,
-                key=f"update_window_constr_{room_idx}_{wall_idx}_{win_idx}"
+                key=f"update_window_constr_{room_idx}_{wall_idx}_{win_idx}",
             )
 
         button_cols = st.columns([9, 1])
@@ -1230,9 +1174,7 @@ def render_door_update_form(wall: Wall, room_idx: int, wall_idx: int, door_idx: 
 
         with cols[0]:
             updated_name = st.text_input(
-                "Name",
-                value=door.name,
-                key=f"update_door_name_{room_idx}_{wall_idx}_{door_idx}"
+                "Name", value=door.name, key=f"update_door_name_{room_idx}_{wall_idx}_{door_idx}"
             )
 
         with cols[1]:
@@ -1241,7 +1183,7 @@ def render_door_update_form(wall: Wall, room_idx: int, wall_idx: int, door_idx: 
                 min_value=0.1,
                 value=door.width_m or 0.87,
                 step=0.1,
-                key=f"update_door_width_{room_idx}_{wall_idx}_{door_idx}"
+                key=f"update_door_width_{room_idx}_{wall_idx}_{door_idx}",
             )
 
         with cols[2]:
@@ -1250,16 +1192,18 @@ def render_door_update_form(wall: Wall, room_idx: int, wall_idx: int, door_idx: 
                 min_value=0.1,
                 value=door.height_m or 2.1,
                 step=0.1,
-                key=f"update_door_height_{room_idx}_{wall_idx}_{door_idx}"
+                key=f"update_door_height_{room_idx}_{wall_idx}_{door_idx}",
             )
 
         with cols[3]:
-            current_constr_idx = list(door_by_name.keys()).index(door.construction_name) if door.construction_name in door_by_name else 0
+            current_constr_idx = (
+                list(door_by_name.keys()).index(door.construction_name) if door.construction_name in door_by_name else 0
+            )
             updated_construction = st.selectbox(
                 "Konstruktion",
                 options=list(door_by_name.keys()),
                 index=current_constr_idx,
-                key=f"update_door_constr_{room_idx}_{wall_idx}_{door_idx}"
+                key=f"update_door_constr_{room_idx}_{wall_idx}_{door_idx}",
             )
 
         button_cols = st.columns([9, 1])
@@ -1302,7 +1246,9 @@ def render_window_list(wall: Wall, room_idx: int, wall_idx: int) -> None:
             with cols[1]:
                 win_construction = st.session_state.building.get_construction_by_name(window.construction_name)
                 u_value_str = f"{win_construction.u_value_w_m2k:.2f}" if win_construction else "N/A"
-                st.write(f"{window.width_m:.2f} × {window.height_m:.2f} m = {window.area_m2:.2f} m² | U: {u_value_str} W/m²K")
+                st.write(
+                    f"{window.width_m:.2f} × {window.height_m:.2f} m = {window.area_m2:.2f} m² | U: {u_value_str} W/m²K"
+                )
             with cols[2]:
                 btn_cols = st.columns(2)
                 with btn_cols[0]:
@@ -1378,19 +1324,22 @@ def render_opening_add_form(wall: Wall, room_idx: int, wall_idx: int) -> None:
         cols = st.columns([1, 2, 1.5, 1.5, 2])
 
         with cols[0]:
-            opening_type = cast(ElementType, st.selectbox(
-                "Typ",
-                options=["window", "door"],
-                format_func=lambda x: "Fenster" if x == "window" else "Tür",
-                key=f"opening_type_{room_idx}_{wall_idx}"
-            ))
+            opening_type = cast(
+                ElementType,
+                st.selectbox(
+                    "Typ",
+                    options=["window", "door"],
+                    format_func=lambda x: "Fenster" if x == "window" else "Tür",
+                    key=f"opening_type_{room_idx}_{wall_idx}",
+                ),
+            )
 
         with cols[1]:
             opening_name = st.text_input(
                 "Name",
                 value="",
                 placeholder=f"z.B. {'Fenster' if opening_type == 'window' else 'Tür'} 1",
-                key=f"opening_name_{room_idx}_{wall_idx}"
+                key=f"opening_name_{room_idx}_{wall_idx}",
             )
 
         with cols[2]:
@@ -1399,7 +1348,7 @@ def render_opening_add_form(wall: Wall, room_idx: int, wall_idx: int) -> None:
                 min_value=0.1,
                 value=1.2 if opening_type == "window" else 0.87,
                 step=0.1,
-                key=f"opening_width_{room_idx}_{wall_idx}"
+                key=f"opening_width_{room_idx}_{wall_idx}",
             )
 
         with cols[3]:
@@ -1408,7 +1357,7 @@ def render_opening_add_form(wall: Wall, room_idx: int, wall_idx: int) -> None:
                 min_value=0.1,
                 value=1.5 if opening_type == "window" else 2.1,
                 step=0.1,
-                key=f"opening_height_{room_idx}_{wall_idx}"
+                key=f"opening_height_{room_idx}_{wall_idx}",
             )
 
         with cols[4]:
@@ -1419,20 +1368,14 @@ def render_opening_add_form(wall: Wall, room_idx: int, wall_idx: int) -> None:
                 selected_opening_constr = None
             else:
                 selected_opening_display = st.selectbox(
-                    "Konstruktion",
-                    options=combined_options,
-                    key=f"opening_constr_{room_idx}_{wall_idx}"
+                    "Konstruktion", options=combined_options, key=f"opening_constr_{room_idx}_{wall_idx}"
                 )
                 selected_opening_constr = selected_opening_display
 
         # Button rechts ausrichten
         button_cols = st.columns([9, 1])
         with button_cols[1]:
-            add_opening = st.form_submit_button(
-                "➕ Hinzufügen",
-                type="primary",
-                disabled=not combined_options
-            )
+            add_opening = st.form_submit_button("➕ Hinzufügen", type="primary", disabled=not combined_options)
 
         if add_opening:
             if not opening_name or opening_name.strip() == "":
@@ -1491,6 +1434,7 @@ def render_wall_openings(room: Room, room_idx: int, wall: Wall, wall_idx: int) -
 # Raum-Detail-Ansicht
 # ============================================================================
 
+
 def render_room_detail(room: Room, room_idx: int) -> None:
     """Zeigt Details und Bauteile eines Raums."""
     expander_state_key = f"room_{room_idx}_expanded"
@@ -1507,6 +1451,7 @@ def render_room_detail(room: Room, room_idx: int) -> None:
 # ============================================================================
 # Haupt-Render-Funktion
 # ============================================================================
+
 
 def render_rooms_tab() -> None:
     """Rendert den kompletten Räume-Tab."""
