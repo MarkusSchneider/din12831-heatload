@@ -67,14 +67,58 @@ class Ventilation(BaseModel):
 
 
 class Area(BaseModel):
-    model_config = {"frozen": True}
-
     length_m: float = Field(ge=0)
     width_m: float = Field(ge=0)
 
+    # Angrenzende Bauteile für Brutto-Flächen-Berechnung
+    left_adjacent_name: str | None = Field(default=None, description="Name des linken angrenzenden Bauteils aus Katalog")
+    top_adjacent_name: str | None = Field(default=None, description="Name des oberen angrenzenden Bauteils aus Katalog")
+    right_adjacent_name: str | None = Field(default=None, description="Name des rechten angrenzenden Bauteils aus Katalog")
+    bottom_adjacent_name: str | None = Field(default=None, description="Name des unteren angrenzenden Bauteils aus Katalog")
+
     @property
     def area_m2(self) -> float:
+        """Berechnet die Netto-Fläche (Länge × Breite)."""
         return self.length_m * self.width_m
+
+    def _get_adjacent_thickness(self, building: Building, adjacent_name: str | None) -> float:
+        """Hilfsmethode: Berechnet die Dicke eines angrenzenden Bauteils.
+
+        - Außenwand: volle Dicke
+        - Innenwand: halbe Dicke
+        - Keine Angabe: 0.0
+        """
+        if not adjacent_name:
+            return 0.0
+
+        try:
+            construction = building.get_construction_by_name(adjacent_name)
+            if construction and construction.thickness_m is not None:
+                if construction.element_type == ConstructionType.EXTERNAL_WALL:
+                    return construction.thickness_m
+                else:
+                    return construction.thickness_m / 2.0
+        except ValueError:
+            pass
+
+        return 0.0
+
+    def gross_area_m2(self, building: Building) -> float:
+        """Berechnet die Brutto-Fläche unter Berücksichtigung angrenzender Bauteile.
+
+        Bruttolänge = Länge + obere Wanddicke + untere Wanddicke
+        Bruttobreite = Breite + linke Wanddicke + rechte Wanddicke
+        Bruttofläche = Bruttolänge × Bruttobreite
+        """
+        left_thickness = self._get_adjacent_thickness(building, self.left_adjacent_name)
+        right_thickness = self._get_adjacent_thickness(building, self.right_adjacent_name)
+        top_thickness = self._get_adjacent_thickness(building, self.top_adjacent_name)
+        bottom_thickness = self._get_adjacent_thickness(building, self.bottom_adjacent_name)
+
+        gross_length = self.length_m + top_thickness + bottom_thickness
+        gross_width = self.width_m + left_thickness + right_thickness
+
+        return gross_length * gross_width
 
 
 class Wall(BaseModel):
@@ -146,6 +190,50 @@ class Room(BaseModel):
             if ceiling_construction and ceiling_construction.thickness_m is not None:
                 ceiling_thickness = ceiling_construction.thickness_m
         return self.net_height_m + ceiling_thickness
+
+    def _get_adjacent_thickness(self, building: Building, adjacent_name: str | None) -> float:
+        """Hilfsmethode: Berechnet die Dicke eines angrenzenden Bauteils.
+
+        - Außenwand: volle Dicke
+        - Innenwand: halbe Dicke
+        - Keine Angabe: 0.0
+        """
+        if not adjacent_name:
+            return 0.0
+
+        try:
+            construction = building.get_construction_by_name(adjacent_name)
+            if construction and construction.thickness_m is not None:
+                if construction.element_type == ConstructionType.EXTERNAL_WALL:
+                    return construction.thickness_m
+                else:
+                    return construction.thickness_m / 2.0
+        except ValueError:
+            pass
+
+        return 0.0
+
+    def gross_floor_area_m2(self, building: Building) -> float:
+        """Berechnet die Brutto-Grundfläche des Bodens als Summe der Bruttoflächen aller Rechtecke.
+
+        Jedes Rechteck kann unterschiedliche angrenzende Bauteile haben.
+        """
+        if not self.floor or not self.areas:
+            return 0.0
+
+        # Summiere die Bruttoflächen aller Rechtecke
+        return sum(area.gross_area_m2(building) for area in self.areas)
+
+    def gross_ceiling_area_m2(self, building: Building) -> float:
+        """Berechnet die Brutto-Grundfläche der Decke als Summe der Bruttoflächen aller Rechtecke.
+
+        Jedes Rechteck kann unterschiedliche angrenzende Bauteile haben.
+        """
+        if not self.ceiling or not self.areas:
+            return 0.0
+
+        # Summiere die Bruttoflächen aller Rechtecke
+        return sum(area.gross_area_m2(building) for area in self.areas)
 
     @property
     def volume_m3(self) -> float:

@@ -69,7 +69,8 @@ def calc_floor_ceiling_heat_load(room: Room, room_temp: float, outside_temperatu
 
     # Boden berechnen
     if room.floor:
-        floor_area = room.floor_area_m2
+        # Brutto-Grundfläche des Bodens
+        floor_area = room.gross_floor_area_m2(building)
 
         # Temperaturdifferenz für Boden
         if room.floor.adjacent_temperature_name:
@@ -88,7 +89,8 @@ def calc_floor_ceiling_heat_load(room: Room, room_temp: float, outside_temperatu
 
     # Decke berechnen
     if room.ceiling:
-        ceiling_area = room.floor_area_m2
+        # Brutto-Grundfläche der Decke
+        ceiling_area = room.gross_ceiling_area_m2(building)
 
         # Temperaturdifferenz für Decke
         if room.ceiling.adjacent_temperature_name:

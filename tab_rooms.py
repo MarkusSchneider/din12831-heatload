@@ -20,12 +20,24 @@ def render_room_floor_ceiling_assignment(room: Room) -> None:
             if adj_temp:
                 adj_temp_str = f"*Angrenzende Temperatur:* {adj_temp.name} ({adj_temp.value_celsius:.1f} °C)"
         st.write(f"**Boden:** {current_floor} - {adj_temp_str}")
+
+        # Zeige Netto- und Bruttofläche
+        net_area = room.floor_area_m2
+        gross_area = room.gross_floor_area_m2(st.session_state.building)
+        st.write(f"*Nettofläche:* {net_area:.2f} m² | *Bruttofläche:* {gross_area:.2f} m²")
+
     with col2:
+        adj_temp_str = ""
         if room.ceiling and room.ceiling.adjacent_temperature_name:
             adj_temp = st.session_state.building.get_temperature_by_name(room.ceiling.adjacent_temperature_name)
             if adj_temp:
                 adj_temp_str = f"*Angrenzende Temperatur:* {adj_temp.name} ({adj_temp.value_celsius:.1f} °C)"
         st.write(f"**Decke:** {current_ceiling} - {adj_temp_str}")
+
+        # Zeige Netto- und Bruttofläche
+        net_area = room.floor_area_m2
+        gross_area = room.gross_ceiling_area_m2(st.session_state.building)
+        st.write(f"*Nettofläche:* {net_area:.2f} m² | *Bruttofläche:* {gross_area:.2f} m²")
 
 
 def render_room_add_form() -> None:
@@ -53,8 +65,15 @@ def render_room_add_form() -> None:
             st.write("**Flächen**")
             rectangles_payload: list[Area] = []
 
+            # Wandkatalog für angrenzende Bauteile
+            wall_catalog = get_catalog_by_type(ConstructionType.EXTERNAL_WALL) + get_catalog_by_type(ConstructionType.INTERNAL_WALL)
+            wall_catalog_names = ["Keine"] + [c.name for c in wall_catalog]
+
             rect_ids: list[int] = st.session_state[rect_ids_key]
-            for _, rect_id in enumerate(list(rect_ids)):
+            for idx, rect_id in enumerate(list(rect_ids), 1):
+                st.write(f"*Fläche {idx}:*" if len(rect_ids) > 1 else "*Fläche:*")
+
+                # Dimensionen
                 c1, c2, c3 = st.columns([2, 2, 1])
                 with c1:
                     r_len = st.number_input(
@@ -78,7 +97,48 @@ def render_room_add_form() -> None:
                         st.session_state[rect_ids_key] = rect_ids
                         st.rerun()
 
-                rectangles_payload.append(Area(length_m=float(r_len), width_m=float(r_wid)))
+                # Angrenzende Wände
+                st.write("*Angrenzende Wände:*")
+                c1, c2, c3, c4 = st.columns(4)
+                with c1:
+                    left_wall = st.selectbox(
+                        "Links",
+                        options=wall_catalog_names,
+                        key=f"new_room_rect_{rect_id}_left",
+                        help="Wand links vom Rechteck"
+                    )
+                with c2:
+                    top_wall = st.selectbox(
+                        "Oben",
+                        options=wall_catalog_names,
+                        key=f"new_room_rect_{rect_id}_top",
+                        help="Wand oben vom Rechteck"
+                    )
+                with c3:
+                    right_wall = st.selectbox(
+                        "Rechts",
+                        options=wall_catalog_names,
+                        key=f"new_room_rect_{rect_id}_right",
+                        help="Wand rechts vom Rechteck"
+                    )
+                with c4:
+                    bottom_wall = st.selectbox(
+                        "Unten",
+                        options=wall_catalog_names,
+                        key=f"new_room_rect_{rect_id}_bottom",
+                        help="Wand unten vom Rechteck"
+                    )
+
+                st.divider()
+
+                rectangles_payload.append(Area(
+                    length_m=float(r_len),
+                    width_m=float(r_wid),
+                    left_adjacent_name=None if left_wall == "Keine" else left_wall,
+                    top_adjacent_name=None if top_wall == "Keine" else top_wall,
+                    right_adjacent_name=None if right_wall == "Keine" else right_wall,
+                    bottom_adjacent_name=None if bottom_wall == "Keine" else bottom_wall,
+                ))
 
             if st.button("➕ Weitere Fläche hinzufügen", key="add_new_room_rect"):
                 max_id = max(rect_ids) if rect_ids else 0
@@ -212,7 +272,7 @@ def render_room_add_form() -> None:
             ventilation=Ventilation(air_change_1_h=new_air_change)
         )
 
-        # Boden/Decke als direkte Felder (Fläche = Raumfläche)
+        # Boden/Decke als direkte Felder (angrenzende Bauteile sind nun in Areas gespeichert)
         floor_adjacent_temp = cast(str, st.session_state.get("new_floor_adjacent_temp"))
         ceiling_adjacent_temp = cast(str, st.session_state.get("new_ceiling_adjacent_temp"))
 
@@ -326,11 +386,38 @@ def render_room_areas_editor(room: Room, room_idx: int) -> None:
     st.subheader("Flächen")
     for idx, _ in enumerate(list(rect_ids)):
         rect = room.areas[idx]
-        cols = st.columns([2, 2, 1])
-        with cols[0]:
-            st.write(f"**Länge:** {rect.length_m} m")
-        with cols[1]:
-            st.write(f"**Breite:** {rect.width_m} m")
+
+        # Berechne Netto- und Bruttofläche
+        net_area = rect.area_m2
+        gross_area = rect.gross_area_m2(st.session_state.building)
+
+        title = f"Fläche {idx + 1}" if len(room.areas) > 1 else "Fläche"
+        with st.expander(f"📐 {title}: {rect.length_m:.2f} m × {rect.width_m:.2f} m = {net_area:.2f} m² (Netto) / {gross_area:.2f} m² (Brutto)", expanded=False):
+            cols = st.columns([2, 2])
+            with cols[0]:
+                st.write(f"**Länge:** {rect.length_m:.2f} m")
+                st.write(f"**Breite:** {rect.width_m:.2f} m")
+            with cols[1]:
+                st.write(f"**Nettofläche:** {net_area:.2f} m²")
+                st.write(f"**Bruttofläche:** {gross_area:.2f} m²")
+
+            # Zeige angrenzende Bauteile
+            st.write("**Angrenzende Bauteile:**")
+            adjacent_info = []
+            if rect.left_adjacent_name:
+                adjacent_info.append(f"⬅️ Links: {rect.left_adjacent_name}")
+            if rect.top_adjacent_name:
+                adjacent_info.append(f"⬆️ Oben: {rect.top_adjacent_name}")
+            if rect.right_adjacent_name:
+                adjacent_info.append(f"➡️ Rechts: {rect.right_adjacent_name}")
+            if rect.bottom_adjacent_name:
+                adjacent_info.append(f"⬇️ Unten: {rect.bottom_adjacent_name}")
+
+            if adjacent_info:
+                for info in adjacent_info:
+                    st.write(f"  {info}")
+            else:
+                st.info("Keine angrenzenden Bauteile definiert")
 
 
 def render_walls_section(room: Room, room_idx: int) -> None:
