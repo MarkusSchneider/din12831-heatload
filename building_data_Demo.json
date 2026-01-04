@@ -35,13 +35,13 @@
       "name": "Innenwand_12",
       "element_type": "internal_wall",
       "u_value_w_m2k": 2.25,
-      "thickness_m": 0.115
+      "thickness_m": 0.12
     },
     {
       "name": "Innenwand_24",
       "element_type": "internal_wall",
       "u_value_w_m2k": 1.6,
-      "thickness_m": 0.24
+      "thickness_m": 0.25
     },
     {
       "name": "Fenster",

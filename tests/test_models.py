@@ -485,7 +485,6 @@ class TestRoom:
         )
         assert room.ventilation.air_change_1_h == 1.0
 
-
     def test_room_gross_height(self):
         """Test Room.gross_height_m() with ceiling thickness."""
         ceiling = Construction(
@@ -569,15 +568,15 @@ class TestRoom:
         )
 
         # Nettofläche = 5.0 * 4.0 = 20.0 m²
-        # Wandstreifen-Berechnung (Option C):
-        # Nord: (5.0 + 0.36 + 0.36) * 0.15 = 5.72 * 0.15 = 0.858 m²
-        # Süd:  (5.0 + 0.06 + 0.06) * 0.15 = 5.12 * 0.15 = 0.768 m²
-        # Ost:  (4.0 + 0.06 + 0.36) * 0.15 = 4.42 * 0.15 = 0.663 m²
-        # West: (4.0 + 0.36 + 0.06) * 0.15 = 4.42 * 0.15 = 0.663 m²
-        # Summe Streifen = 2.952 m²
-        # Bruttofläche = 20.0 + 2.952 = 22.952 m²
+        # Wandstreifen-Berechnung (Option C) - verwendet Wanddicke, nicht Bodendicke:
+        # Nord (Ext 0.36m): (5.0 + 0.36 + 0.36) * 0.36 = 5.72 * 0.36 = 2.0592 m²
+        # Süd  (Int 0.12m): (5.0 + 0.06 + 0.06) * 0.12 = 5.12 * 0.12 = 0.6144 m²
+        # Ost  (Ext 0.36m): (4.0 + 0.06 + 0.36) * 0.36 = 4.42 * 0.36 = 1.5912 m²
+        # West (Int 0.12m): (4.0 + 0.36 + 0.06) * 0.12 = 4.42 * 0.12 = 0.5304 m²
+        # Summe Streifen = 4.7952 m²
+        # Bruttofläche = 20.0 + 4.7952 = 24.7952 m²
         gross_floor = room.gross_floor_area_m2(building)
-        assert gross_floor == pytest.approx(22.952)
+        assert gross_floor == pytest.approx(24.7952)
 
     def test_room_gross_ceiling_area(self):
         """Test Room.gross_ceiling_area_m2() calculation mit wandbasierter Berechnung (Option C)."""
@@ -653,17 +652,17 @@ class TestRoom:
         )
 
         # Nettofläche = (5.0 * 4.0) + (2.0 * 3.0) = 20.0 + 6.0 = 26.0 m²
-        # Wandstreifen-Berechnung (Option C):
-        # Nord:  (5.0 + 0.36 + 0.36) * 0.20 = 1.144 m²
-        # Ost1:  (4.0 + 0.36 + 0.36) * 0.20 = 0.944 m²
-        # Süd1:  (3.0 + 0.36 + 0.36) * 0.20 = 0.744 m²
-        # Ost2:  (3.0 + 0.36 + 0.36) * 0.20 = 0.744 m²
-        # Süd2:  (2.0 + 0.36 + 0.36) * 0.20 = 0.544 m²
-        # West:  (7.0 + 0.36 + 0.36) * 0.20 = 1.544 m²
-        # Summe Streifen = 5.664 m²
-        # Bruttofläche = 26.0 + 5.664 = 31.664 m²
+        # Wandstreifen-Berechnung (Option C) - verwendet Wanddicke (0.36m), nicht Deckendicke:
+        # Nord:  (5.0 + 0.36 + 0.36) * 0.36 = 5.72 * 0.36 = 2.0592 m²
+        # Ost1:  (4.0 + 0.36 + 0.36) * 0.36 = 4.72 * 0.36 = 1.6992 m²
+        # Süd1:  (3.0 + 0.36 + 0.36) * 0.36 = 3.72 * 0.36 = 1.3392 m²
+        # Ost2:  (3.0 + 0.36 + 0.36) * 0.36 = 3.72 * 0.36 = 1.3392 m²
+        # Süd2:  (2.0 + 0.36 + 0.36) * 0.36 = 2.72 * 0.36 = 0.9792 m²
+        # West:  (7.0 + 0.36 + 0.36) * 0.36 = 7.72 * 0.36 = 2.7792 m²
+        # Summe Streifen = 10.1952 m²
+        # Bruttofläche = 26.0 + 10.1952 = 36.1952 m²
         gross_ceiling = room.gross_ceiling_area_m2(building)
-        assert gross_ceiling == pytest.approx(31.664)
+        assert gross_ceiling == pytest.approx(36.1952)
 
 
 class TestBuilding:

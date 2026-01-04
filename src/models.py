@@ -272,18 +272,20 @@ class Room(BaseModel):
             return thickness / 2
         return thickness
 
-    def _calculate_gross_area_m2(self, building: Building, construction_name: str) -> float:
+    def _calculate_gross_area_m2(self, building: Building) -> float:
         """Berechnet die Brutto-Grundfläche mit Option C Formel.
 
-        Bruttofläche = Nettofläche + Σ (Nettolänge + Dicke_links/2 + Dicke_rechts/2) × Dicke
+        Bruttofläche = Nettofläche + Σ (Nettolänge + Dicke_links/2 + Dicke_rechts/2) × Wanddicke
 
         Für jede Wand wird ein Flächenstreifen berechnet, der die halben Nachbarwanddicken
         einbezieht. So werden Ecken automatisch korrekt erfasst (jede Ecke von zwei Wänden
         je zur Hälfte).
 
+        Die Bruttofläche ist für Boden und Decke identisch, da sie nur von den Wanddicken
+        abhängt, nicht von der Dicke des Bodens oder der Decke selbst.
+
         Args:
             building: Building-Objekt für Zugriff auf Konstruktionskatalog
-            construction_name: Name der Konstruktion (Boden oder Decke)
 
         Returns:
             Brutto-Grundfläche in m²
@@ -295,22 +297,18 @@ class Room(BaseModel):
         net_area = self.floor_area_m2
 
         # Addiere Flächenstreifen für jede Wand
-        construction = building.get_construction_by_name(construction_name)
-        if not construction or construction.thickness_m is None:
-            return net_area
-
-        thickness = construction.thickness_m
-
         for wall in self.walls:
             wall_construction = building.get_construction_by_name(wall.construction_name)
             if not wall_construction or wall_construction.thickness_m is None:
                 continue
 
+            thickness = wall_construction.thickness_m
+
             # Berechne Dicken der Nachbarwände (halbe Dicke bei Innenwänden)
             left_thickness = self._get_neighbor_thickness(building, wall.left_wall_name)
             right_thickness = self._get_neighbor_thickness(building, wall.right_wall_name)
 
-            # Flächenstreifen: (Nettolänge + halbe Nachbardicken) × Dicke
+            # Flächenstreifen: (Nettolänge + halbe Nachbardicken) × Wanddicke
             strip_length = wall.net_length_m + left_thickness + right_thickness
             strip_area = strip_length * thickness
             net_area += strip_area
@@ -321,13 +319,13 @@ class Room(BaseModel):
         """Berechnet die Brutto-Grundfläche des Bodens mit Option C Formel."""
         if not self.floor:
             return 0.0
-        return self._calculate_gross_area_m2(building, self.floor.construction_name)
+        return self._calculate_gross_area_m2(building)
 
     def gross_ceiling_area_m2(self, building: Building) -> float:
         """Berechnet die Brutto-Grundfläche der Decke mit Option C Formel."""
         if not self.ceiling:
             return 0.0
-        return self._calculate_gross_area_m2(building, self.ceiling.construction_name)
+        return self._calculate_gross_area_m2(building)
 
     @property
     def volume_m3(self) -> float:

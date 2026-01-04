@@ -305,7 +305,7 @@ def render_update_areas_section(room: Room, room_idx: int) -> list[Area]:
 
 
 def validate_new_room_inputs(
-    room_name: str, rectangles: list[Area], temp_name: str, floor_constr: str | None, ceiling_constr: str | None
+    room_name: str, rectangles: list[Area], temp_name: str | None, floor_constr: str | None, ceiling_constr: str | None
 ) -> str | None:
     """Validiert die Eingaben für einen neuen Raum. Gibt Fehlermeldung zurück oder None."""
     if not room_name:
@@ -707,6 +707,10 @@ def render_room_update_form(room: Room, room_idx: int) -> None:
                     construction_name=updated_ceiling_construction,
                     adjacent_temperature_name=updated_ceiling_temp,
                 )
+
+            # Cleanup session state
+            if f"areas_to_delete_{room_idx}" in st.session_state:
+                del st.session_state[f"areas_to_delete_{room_idx}"]
 
             st.session_state[f"show_room_update_form_{room_idx}"] = False
             save_building(st.session_state.building)
