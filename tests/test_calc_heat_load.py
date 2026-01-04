@@ -18,6 +18,7 @@ from src.models import (
     ConstructionType,
     Temperature,
     Element,
+    ElementType,
     Ventilation,
     Area,
     Wall,
@@ -91,9 +92,25 @@ def sample_building(sample_constructions, sample_temperatures):
 @pytest.fixture
 def simple_room(sample_building):
     """Erstellt einen einfachen Testraum."""
+    # Add no_wall construction for internal boundaries
+    no_wall = Construction(
+        name="No Wall",
+        element_type=ConstructionType.INTERNAL_WALL,
+        u_value_w_m2k=0.5,
+        thickness_m=0.0
+    )
+    sample_building.construction_catalog.append(no_wall)
+
     room = Room(
         name="Wohnzimmer",
-        areas=[Area(length_m=5.0, width_m=4.0)],
+        areas=[Area(
+            length_m=5.0,
+            width_m=4.0,
+            left_adjacent_name="No Wall",
+            right_adjacent_name="No Wall",
+            top_adjacent_name="No Wall",
+            bottom_adjacent_name="No Wall"
+        )],
         net_height_m=2.5,
         room_temperature_name="Wohnraum",
         ventilation=Ventilation(air_change_1_h=0.5),
@@ -101,7 +118,7 @@ def simple_room(sample_building):
 
     # Boden
     room.floor = Element(
-        type="floor",
+        type=ElementType.FLOOR,
         name="Boden",
         construction_name="Bodenplatte",
         adjacent_temperature_name="Keller",
@@ -109,7 +126,7 @@ def simple_room(sample_building):
 
     # Decke
     room.ceiling = Element(
-        type="ceiling",
+        type=ElementType.CEILING,
         name="Decke",
         construction_name="Decke Standard",
         adjacent_temperature_name="Dachboden",
@@ -124,7 +141,7 @@ def simple_room(sample_building):
         right_wall_name="Außenwand Standard",
         windows=[
             Element(
-                type="window",
+                type=ElementType.WINDOW,
                 name="Fenster 1",
                 construction_name="Fenster Dreifach",
                 width_m=1.2,
@@ -146,6 +163,7 @@ class TestElementHeatLoad:
         element = ElementHeatLoad(
             element_name="Testwand",
             u_value_w_m2k=0.24,
+            u_value_corrected_w_m2k=0.29,
             area_m2=10.0,
             delta_temp_k=32.0,
             transmission_w=500.0,
@@ -163,9 +181,9 @@ class TestRoomHeatLoadResult:
     def test_transmission_w_property(self):
         """Test der transmission_w Property."""
         elements = [
-            ElementHeatLoad("Element 1", 0.24, 10.0, 32.0, 100.0),
-            ElementHeatLoad("Element 2", 0.30, 15.0, 32.0, 200.0),
-            ElementHeatLoad("Element 3", 0.20, 20.0, 32.0, 150.0),
+            ElementHeatLoad("Element 1", 0.24, 0.29, 10.0, 32.0, 100.0),
+            ElementHeatLoad("Element 2", 0.30, 0.35, 15.0, 32.0, 200.0),
+            ElementHeatLoad("Element 3", 0.20, 0.25, 20.0, 32.0, 150.0),
         ]
         result = RoomHeatLoadResult(
             room_name="Test Raum",
@@ -177,8 +195,8 @@ class TestRoomHeatLoadResult:
     def test_total_w_property(self):
         """Test der total_w Property."""
         elements = [
-            ElementHeatLoad("Element 1", 0.24, 10.0, 32.0, 100.0),
-            ElementHeatLoad("Element 2", 0.30, 15.0, 32.0, 200.0),
+            ElementHeatLoad("Element 1", 0.24, 0.29, 10.0, 32.0, 100.0),
+            ElementHeatLoad("Element 2", 0.30, 0.35, 15.0, 32.0, 200.0),
         ]
         result = RoomHeatLoadResult(
             room_name="Test Raum",
@@ -205,8 +223,8 @@ class TestCalcElementTransmission:
         assert result.u_value_w_m2k == 0.24
         assert result.area_m2 == 10.0
         assert result.delta_temp_k == 32.0
-        # 0.24 W/(m²K) * 10 m² * 32 K = 76.8 W
-        assert pytest.approx(result.transmission_w, 0.01) == 76.8
+        # (0.24 + 0.05 thermal bridge) W/(m²K) * 10 m² * 32 K = 92.8 W
+        assert pytest.approx(result.transmission_w, 0.01) == 92.8
 
     def test_with_deduction_area(self, sample_building):
         """Test mit Abzugsfläche."""
@@ -221,8 +239,8 @@ class TestCalcElementTransmission:
 
         assert result.area_m2 == 8.0  # Nettofläche: 10 - 2
         assert result.delta_temp_k == 32.0
-        # 0.24 W/(m²K) * (10 - 2) m² * 32 K = 61.44 W
-        assert pytest.approx(result.transmission_w, 0.01) == 61.44
+        # (0.24 + 0.05 thermal bridge) W/(m²K) * (10 - 2) m² * 32 K = 74.24 W
+        assert pytest.approx(result.transmission_w, 0.01) == 74.24
 
     def test_default_deduction_area(self, sample_building):
         """Test mit Standard-Abzugsfläche (0.0)."""
@@ -237,8 +255,8 @@ class TestCalcElementTransmission:
         assert result.u_value_w_m2k == 0.3
         assert result.area_m2 == 20.0
         assert result.delta_temp_k == 10.0
-        # 0.3 W/(m²K) * 20 m² * 10 K = 60 W
-        assert pytest.approx(result.transmission_w, 0.01) == 60.0
+        # (0.3 + 0.05 thermal bridge) W/(m²K) * 20 m² * 10 K = 70.0 W
+        assert pytest.approx(result.transmission_w, 0.01) == 70.0
 
 
 class TestCalcVentilationHeatLoad:
@@ -276,19 +294,19 @@ class TestCalcFloorCeilingHeatLoad:
 
         assert len(result) == 2
 
-        # Boden: 0.3 W/(m²K) * 20 m² * (20 - 10) K = 60 W
+        # Boden: (0.3 + 0.05 thermal bridge) W/(m²K) * 20 m² * (20 - 10) K = 70.0 W
         floor_result = next(e for e in result if e.element_name == "Boden")
         assert floor_result.u_value_w_m2k == 0.3
         assert floor_result.area_m2 == 20.0
         assert floor_result.delta_temp_k == 10.0
-        assert pytest.approx(floor_result.transmission_w, 0.01) == 60.0
+        assert pytest.approx(floor_result.transmission_w, 0.01) == 70.0
 
-        # Decke: 0.2 W/(m²K) * 20 m² * (20 - 5) K = 60 W
+        # Decke: (0.2 + 0.05 thermal bridge) W/(m²K) * 20 m² * (20 - 5) K = 75.0 W
         ceiling_result = next(e for e in result if e.element_name == "Decke")
         assert ceiling_result.u_value_w_m2k == 0.2
         assert ceiling_result.area_m2 == 20.0
         assert ceiling_result.delta_temp_k == 15.0
-        assert pytest.approx(ceiling_result.transmission_w, 0.01) == 60.0
+        assert pytest.approx(ceiling_result.transmission_w, 0.01) == 75.0
 
 
 class TestCalcWallsHeatLoad:
@@ -304,12 +322,12 @@ class TestCalcWallsHeatLoad:
         # Erwarte 2 Elemente: Wand und Fenster
         assert len(result) == 2
 
-        # Fenster: 0.8 W/(m²K) * 1.8 m² * 32 K = 46.08 W
+        # Fenster: (0.8 + 0.05 thermal bridge) W/(m²K) * 1.8 m² * 32 K = 48.96 W
         window_result = next(e for e in result if "Fenster" in e.element_name)
         assert window_result.u_value_w_m2k == 0.8
         assert pytest.approx(window_result.area_m2, 0.01) == 1.8
         assert window_result.delta_temp_k == 32.0
-        assert pytest.approx(window_result.transmission_w, 0.01) == 46.08
+        assert pytest.approx(window_result.transmission_w, 0.01) == 48.96
 
 
 class TestCalcRoomHeatLoad:

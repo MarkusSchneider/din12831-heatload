@@ -94,18 +94,18 @@
         {
           "length_m": 2.37,
           "width_m": 1.96,
-          "left_adjacent_name": null,
-          "top_adjacent_name": null,
-          "right_adjacent_name": null,
-          "bottom_adjacent_name": null
+          "left_adjacent_name": "Trennung",
+          "top_adjacent_name": "Trennung",
+          "right_adjacent_name": "Trennung",
+          "bottom_adjacent_name": "Trennung"
         },
         {
           "length_m": 1.4,
           "width_m": 0.71,
-          "left_adjacent_name": null,
-          "top_adjacent_name": null,
-          "right_adjacent_name": null,
-          "bottom_adjacent_name": null
+          "left_adjacent_name": "Trennung",
+          "top_adjacent_name": "Trennung",
+          "right_adjacent_name": "Trennung",
+          "bottom_adjacent_name": "Trennung"
         }
       ],
       "net_height_m": 2.5,
@@ -138,10 +138,10 @@
         {
           "length_m": 3.71,
           "width_m": 3.0,
-          "left_adjacent_name": null,
-          "top_adjacent_name": null,
-          "right_adjacent_name": null,
-          "bottom_adjacent_name": null
+          "left_adjacent_name": "Trennung",
+          "top_adjacent_name": "Trennung",
+          "right_adjacent_name": "Trennung",
+          "bottom_adjacent_name": "Trennung"
         }
       ],
       "net_height_m": 2.5,

@@ -5,6 +5,7 @@ from pydantic import ValidationError
 from src.models import (
     Construction,
     ConstructionType,
+    ElementType,
     Temperature,
     Element,
     Ventilation,
@@ -12,6 +13,7 @@ from src.models import (
     Wall,
     Room,
     Building,
+    get_adjacent_thickness,
 )
 
 
@@ -43,11 +45,11 @@ class TestConstruction:
         assert construction.thickness_m == 0.36
 
     def test_construction_default_type(self):
-        construction = Construction(name="Test", u_value_w_m2k=0.5)
+        construction = Construction(name="Test", u_value_w_m2k=0.5, thickness_m=0.3)
         assert construction.element_type == ConstructionType.EXTERNAL_WALL
 
     def test_construction_no_thickness(self):
-        construction = Construction(name="Window 1", u_value_w_m2k=1.2)
+        construction = Construction(name="Window 1", element_type=ConstructionType.WINDOW, u_value_w_m2k=1.2)
         assert construction.thickness_m is None
 
     def test_construction_invalid_u_value(self):
@@ -57,6 +59,220 @@ class TestConstruction:
     def test_construction_negative_thickness(self):
         with pytest.raises(ValidationError):
             Construction(name="Bad", u_value_w_m2k=0.5, thickness_m=-0.1)
+
+    def test_construction_requires_thickness_for_walls(self):
+        """Test that external walls require thickness."""
+        with pytest.raises(ValidationError) as exc_info:
+            Construction(name="External Wall", element_type=ConstructionType.EXTERNAL_WALL, u_value_w_m2k=0.24)
+        assert "requires thickness_m to be set" in str(exc_info.value)
+
+    def test_construction_requires_thickness_for_internal_walls(self):
+        """Test that internal walls require thickness."""
+        with pytest.raises(ValidationError) as exc_info:
+            Construction(name="Internal Wall", element_type=ConstructionType.INTERNAL_WALL, u_value_w_m2k=0.5)
+        assert "requires thickness_m to be set" in str(exc_info.value)
+
+    def test_construction_requires_thickness_for_floor(self):
+        """Test that floors require thickness."""
+        with pytest.raises(ValidationError) as exc_info:
+            Construction(name="Floor", element_type=ConstructionType.FLOOR, u_value_w_m2k=0.3)
+        assert "requires thickness_m to be set" in str(exc_info.value)
+
+    def test_construction_requires_thickness_for_ceiling(self):
+        """Test that ceilings require thickness."""
+        with pytest.raises(ValidationError) as exc_info:
+            Construction(name="Ceiling", element_type=ConstructionType.CEILING, u_value_w_m2k=0.2)
+        assert "requires thickness_m to be set" in str(exc_info.value)
+
+    def test_construction_no_thickness_required_for_window(self):
+        """Test that windows don't require thickness."""
+        construction = Construction(name="Window", element_type=ConstructionType.WINDOW, u_value_w_m2k=0.8)
+        assert construction.thickness_m is None
+
+    def test_construction_no_thickness_required_for_door(self):
+        """Test that doors don't require thickness."""
+        construction = Construction(name="Door", element_type=ConstructionType.DOOR, u_value_w_m2k=1.8)
+        assert construction.thickness_m is None
+
+    def test_get_adjacent_thickness_external_wall(self):
+        """Test that external walls return full thickness."""
+        construction = Construction(
+            name="External Wall",
+            element_type=ConstructionType.EXTERNAL_WALL,
+            u_value_w_m2k=0.24,
+            thickness_m=0.36
+        )
+        assert construction.get_adjacent_thickness() == 0.36
+
+    def test_get_adjacent_thickness_internal_wall(self):
+        """Test that internal walls return half thickness."""
+        construction = Construction(
+            name="Internal Wall",
+            element_type=ConstructionType.INTERNAL_WALL,
+            u_value_w_m2k=0.5,
+            thickness_m=0.12
+        )
+        assert construction.get_adjacent_thickness() == pytest.approx(0.06)
+
+    def test_get_adjacent_thickness_floor(self):
+        """Test that floors return half thickness."""
+        construction = Construction(
+            name="Floor",
+            element_type=ConstructionType.FLOOR,
+            u_value_w_m2k=0.3,
+            thickness_m=0.25
+        )
+        assert construction.get_adjacent_thickness() == pytest.approx(0.125)
+
+    def test_get_adjacent_thickness_ceiling(self):
+        """Test that ceilings return half thickness."""
+        construction = Construction(
+            name="Ceiling",
+            element_type=ConstructionType.CEILING,
+            u_value_w_m2k=0.2,
+            thickness_m=0.30
+        )
+        assert construction.get_adjacent_thickness() == pytest.approx(0.15)
+
+    def test_get_adjacent_thickness_window_fails(self):
+        """Test that windows can't calculate adjacent thickness."""
+        construction = Construction(
+            name="Window",
+            element_type=ConstructionType.WINDOW,
+            u_value_w_m2k=0.8
+        )
+        with pytest.raises(ValueError) as exc_info:
+            construction.get_adjacent_thickness()
+        assert "Invalid construction type" in str(exc_info.value)
+        assert "Window" in str(exc_info.value)
+
+    def test_get_adjacent_thickness_door_fails(self):
+        """Test that doors can't calculate adjacent thickness."""
+        construction = Construction(
+            name="Door",
+            element_type=ConstructionType.DOOR,
+            u_value_w_m2k=1.8
+        )
+        with pytest.raises(ValueError) as exc_info:
+            construction.get_adjacent_thickness()
+        assert "Invalid construction type" in str(exc_info.value)
+        assert "Door" in str(exc_info.value)
+
+
+class TestGetAdjacentThickness:
+    """Tests for module-level get_adjacent_thickness function."""
+
+    def test_get_adjacent_thickness_external_wall(self):
+        """Test that external walls return full thickness."""
+        external_wall = Construction(
+            name="External Wall",
+            element_type=ConstructionType.EXTERNAL_WALL,
+            u_value_w_m2k=0.24,
+            thickness_m=0.36
+        )
+        building = Building(
+            name="Test Building",
+            construction_catalog=[external_wall]
+        )
+
+        thickness = get_adjacent_thickness(building, "External Wall")
+        assert thickness == 0.36
+
+    def test_get_adjacent_thickness_internal_wall(self):
+        """Test that internal walls return half thickness."""
+        internal_wall = Construction(
+            name="Internal Wall",
+            element_type=ConstructionType.INTERNAL_WALL,
+            u_value_w_m2k=0.5,
+            thickness_m=0.12
+        )
+        building = Building(
+            name="Test Building",
+            construction_catalog=[internal_wall]
+        )
+
+        thickness = get_adjacent_thickness(building, "Internal Wall")
+        assert thickness == 0.06  # Half of 0.12
+
+    def test_get_adjacent_thickness_floor(self):
+        """Test that floors return half thickness."""
+        floor = Construction(
+            name="Floor",
+            element_type=ConstructionType.FLOOR,
+            u_value_w_m2k=0.3,
+            thickness_m=0.25
+        )
+        building = Building(
+            name="Test Building",
+            construction_catalog=[floor]
+        )
+
+        thickness = get_adjacent_thickness(building, "Floor")
+        assert thickness == 0.125  # Half of 0.25
+
+    def test_get_adjacent_thickness_ceiling(self):
+        """Test that ceilings return half thickness."""
+        ceiling = Construction(
+            name="Ceiling",
+            element_type=ConstructionType.CEILING,
+            u_value_w_m2k=0.2,
+            thickness_m=0.20
+        )
+        building = Building(
+            name="Test Building",
+            construction_catalog=[ceiling]
+        )
+
+        thickness = get_adjacent_thickness(building, "Ceiling")
+        assert thickness == 0.10  # Half of 0.20
+
+    def test_get_adjacent_thickness_construction_not_found(self):
+        """Test that ValueError is raised when construction is not found."""
+        building = Building(name="Test Building")
+
+        with pytest.raises(ValueError) as exc_info:
+            get_adjacent_thickness(building, "Nonexistent Wall")
+        assert "Construction 'Nonexistent Wall' not found" in str(exc_info.value)
+
+    def test_get_adjacent_thickness_none_adjacent_name(self):
+        """Test that AssertionError is raised when adjacent_name is None."""
+        building = Building(name="Test Building")
+
+        with pytest.raises(AssertionError) as exc_info:
+            get_adjacent_thickness(building, None)
+        assert "adjacent_name cannot be None" in str(exc_info.value)
+
+    def test_get_adjacent_thickness_window_raises_error(self):
+        """Test that windows raise ValueError (no thickness applicable)."""
+        window = Construction(
+            name="Window",
+            element_type=ConstructionType.WINDOW,
+            u_value_w_m2k=1.2
+        )
+        building = Building(
+            name="Test Building",
+            construction_catalog=[window]
+        )
+
+        with pytest.raises(ValueError) as exc_info:
+            get_adjacent_thickness(building, "Window")
+        assert "Invalid construction type" in str(exc_info.value)
+
+    def test_get_adjacent_thickness_door_raises_error(self):
+        """Test that doors raise ValueError (no thickness applicable)."""
+        door = Construction(
+            name="Door",
+            element_type=ConstructionType.DOOR,
+            u_value_w_m2k=1.8
+        )
+        building = Building(
+            name="Test Building",
+            construction_catalog=[door]
+        )
+
+        with pytest.raises(ValueError) as exc_info:
+            get_adjacent_thickness(building, "Door")
+        assert "Invalid construction type" in str(exc_info.value)
 
 
 class TestTemperature:
@@ -81,54 +297,54 @@ class TestElement:
 
     def test_element_window_with_dimensions(self):
         element = Element(
-            type="window",
+            type=ElementType.WINDOW,
             name="Window 1",
             construction_name="Window Type A",
             width_m=1.2,
             height_m=1.5,
         )
-        assert element.type == "window"
+        assert element.type == ElementType.WINDOW
         assert element.area_m2 == pytest.approx(1.8)
 
     def test_element_window_without_dimensions_fails(self):
         with pytest.raises(ValidationError):
             Element(
-                type="window",
+                type=ElementType.WINDOW,
                 name="Bad Window",
                 construction_name="Window Type A",
             )
 
     def test_element_door_with_dimensions(self):
         element = Element(
-            type="door",
+            type=ElementType.DOOR,
             name="Door 1",
             construction_name="Door Type A",
             width_m=0.9,
             height_m=2.1,
         )
-        assert element.type == "door"
+        assert element.type == ElementType.DOOR
         assert element.area_m2 == pytest.approx(1.89)
 
     def test_element_door_without_height_fails(self):
         with pytest.raises(ValidationError):
             Element(
-                type="door",
+                type=ElementType.DOOR,
                 name="Bad Door",
                 construction_name="Door Type A",
                 width_m=0.9,
             )
 
-    def test_element_wall_without_dimensions(self):
+    def test_element_floor_without_dimensions(self):
         element = Element(
-            type="wall",
-            name="Wall 1",
-            construction_name="External Wall",
+            type=ElementType.FLOOR,
+            name="Floor 1",
+            construction_name="Floor Construction",
         )
         assert element.area_m2 == 0.0
 
     def test_element_floor_with_adjacent_temperature(self):
         element = Element(
-            type="floor",
+            type=ElementType.FLOOR,
             name="Floor 1",
             construction_name="Floor Type A",
             adjacent_temperature_name="Basement",
@@ -156,7 +372,21 @@ class TestArea:
     """Tests for Area model."""
 
     def test_area_simple(self):
-        area = Area(length_m=5.0, width_m=4.0)
+        # Create a zero-thickness construction for internal boundaries
+        no_wall = Construction(
+            name="No Wall",
+            element_type=ConstructionType.INTERNAL_WALL,
+            u_value_w_m2k=0.5,
+            thickness_m=0.0
+        )
+        area = Area(
+            length_m=5.0,
+            width_m=4.0,
+            left_adjacent_name="No Wall",
+            right_adjacent_name="No Wall",
+            top_adjacent_name="No Wall",
+            bottom_adjacent_name="No Wall"
+        )
         assert area.area_m2 == 20.0
 
     def test_area_with_adjacents(self):
@@ -165,17 +395,103 @@ class TestArea:
             width_m=4.0,
             left_adjacent_name="Wall Left",
             right_adjacent_name="Wall Right",
+            top_adjacent_name="Wall Top",
+            bottom_adjacent_name="Wall Bottom"
         )
         assert area.left_adjacent_name == "Wall Left"
         assert area.right_adjacent_name == "Wall Right"
 
     def test_area_gross_calculation_no_building(self):
-        """Test that gross_area_m2 needs a building parameter."""
-        area = Area(length_m=5.0, width_m=4.0)
-        # This test just ensures the method exists and requires a building
-        building = Building(name="Test Building")
+        """Test that gross_area_m2 with zero-thickness constructions gives net area."""
+        no_wall = Construction(
+            name="No Wall",
+            element_type=ConstructionType.INTERNAL_WALL,
+            u_value_w_m2k=0.5,
+            thickness_m=0.0
+        )
+        building = Building(
+            name="Test Building",
+            construction_catalog=[no_wall]
+        )
+        area = Area(
+            length_m=5.0,
+            width_m=4.0,
+            left_adjacent_name="No Wall",
+            right_adjacent_name="No Wall",
+            top_adjacent_name="No Wall",
+            bottom_adjacent_name="No Wall"
+        )
         gross_area = area.gross_area_m2(building)
-        assert gross_area == 20.0  # No adjacent walls, so same as net
+        assert gross_area == 20.0  # Zero thickness, so same as net
+
+    def test_area_gross_calculation_with_adjacent_walls(self):
+        """Test gross area calculation with adjacent walls."""
+        # Create building with constructions
+        external_wall = Construction(
+            name="External Wall",
+            element_type=ConstructionType.EXTERNAL_WALL,
+            u_value_w_m2k=0.24,
+            thickness_m=0.36
+        )
+        internal_wall = Construction(
+            name="Internal Wall",
+            element_type=ConstructionType.INTERNAL_WALL,
+            u_value_w_m2k=0.5,
+            thickness_m=0.12
+        )
+        building = Building(
+            name="Test Building",
+            construction_catalog=[external_wall, internal_wall]
+        )
+
+        area = Area(
+            length_m=5.0,
+            width_m=4.0,
+            left_adjacent_name="External Wall",    # Full thickness: 0.36
+            right_adjacent_name="Internal Wall",   # Half thickness: 0.06
+            top_adjacent_name="External Wall",     # Full thickness: 0.36
+            bottom_adjacent_name="Internal Wall"   # Half thickness: 0.06
+        )
+
+        # Gross length = 5.0 + 0.36 + 0.06 = 5.42
+        # Gross width = 4.0 + 0.36 + 0.06 = 4.42
+        # Gross area = 5.42 * 4.42 = 23.9564
+        gross_area = area.gross_area_m2(building)
+        assert gross_area == pytest.approx(23.9564)
+
+    def test_area_gross_calculation_partial_adjacents(self):
+        """Test gross area with external and internal boundary (zero-thickness)."""
+        external_wall = Construction(
+            name="External Wall",
+            element_type=ConstructionType.EXTERNAL_WALL,
+            u_value_w_m2k=0.24,
+            thickness_m=0.36
+        )
+        no_wall = Construction(
+            name="No Wall",
+            element_type=ConstructionType.INTERNAL_WALL,
+            u_value_w_m2k=0.5,
+            thickness_m=0.0
+        )
+        building = Building(
+            name="Test Building",
+            construction_catalog=[external_wall, no_wall]
+        )
+
+        area = Area(
+            length_m=5.0,
+            width_m=4.0,
+            left_adjacent_name="External Wall",  # 0.36
+            right_adjacent_name="No Wall",       # 0.0 (internal boundary)
+            top_adjacent_name="No Wall",         # 0.0
+            bottom_adjacent_name="No Wall"       # 0.0
+        )
+
+        # Gross length = 5.0 + 0.0 + 0.0 = 5.0
+        # Gross width = 4.0 + 0.36 + 0.0 = 4.36
+        # Gross area = 5.0 * 4.36 = 21.8
+        gross_area = area.gross_area_m2(building)
+        assert gross_area == pytest.approx(21.8)
 
 
 class TestWall:
@@ -196,14 +512,14 @@ class TestWall:
 
     def test_wall_with_windows_and_doors(self):
         window = Element(
-            type="window",
+            type=ElementType.WINDOW,
             name="Window 1",
             construction_name="Window Type A",
             width_m=1.2,
             height_m=1.5,
         )
         door = Element(
-            type="door",
+            type=ElementType.DOOR,
             name="Door 1",
             construction_name="Door Type A",
             width_m=0.9,
@@ -232,12 +548,115 @@ class TestWall:
         )
         assert wall.adjacent_room_temperature_name == "Corridor"
 
+    def test_wall_gross_length_with_adjacents(self):
+        """Test Wall.gross_length_m() with adjacent walls."""
+        external_wall = Construction(
+            name="External Wall",
+            element_type=ConstructionType.EXTERNAL_WALL,
+            u_value_w_m2k=0.24,
+            thickness_m=0.36
+        )
+        internal_wall = Construction(
+            name="Internal Wall",
+            element_type=ConstructionType.INTERNAL_WALL,
+            u_value_w_m2k=0.5,
+            thickness_m=0.12
+        )
+        building = Building(
+            name="Test Building",
+            construction_catalog=[external_wall, internal_wall]
+        )
+
+        wall = Wall(
+            orientation="North",
+            net_length_m=5.0,
+            construction_name="External Wall",
+            left_wall_name="External Wall",    # Full thickness: 0.36
+            right_wall_name="Internal Wall"    # Half thickness: 0.06
+        )
+
+        # Gross length = 5.0 + 0.36 + 0.06 = 5.42
+        gross_length = wall.gross_length_m(building)
+        assert gross_length == pytest.approx(5.42)
+
+    def test_wall_gross_length_no_adjacents(self):
+        """Test Wall.gross_length_m() with simple same-type adjacent walls."""
+        external_wall = Construction(
+            name="External Wall",
+            element_type=ConstructionType.EXTERNAL_WALL,
+            u_value_w_m2k=0.24,
+            thickness_m=0.36
+        )
+        building = Building(
+            name="Test Building",
+            construction_catalog=[external_wall]
+        )
+
+        wall = Wall(
+            orientation="North",
+            net_length_m=5.0,
+            construction_name="External Wall",
+            left_wall_name="External Wall",
+            right_wall_name="External Wall"
+        )
+
+        # Gross length = 5.0 + 0.36 + 0.36 = 5.72
+        gross_length = wall.gross_length_m(building)
+        assert gross_length == pytest.approx(5.72)
+
+    def test_wall_gross_area(self):
+        """Test Wall.gross_area_m2() calculation."""
+        external_wall = Construction(
+            name="External Wall",
+            element_type=ConstructionType.EXTERNAL_WALL,
+            u_value_w_m2k=0.24,
+            thickness_m=0.36
+        )
+        ceiling = Construction(
+            name="Ceiling",
+            element_type=ConstructionType.CEILING,
+            u_value_w_m2k=0.2,
+            thickness_m=0.20
+        )
+        building = Building(
+            name="Test Building",
+            construction_catalog=[external_wall, ceiling]
+        )
+
+        wall = Wall(
+            orientation="North",
+            net_length_m=5.0,
+            construction_name="External Wall",
+            left_wall_name="External Wall",    # 0.36
+            right_wall_name="External Wall"    # 0.36
+        )
+
+        # Gross length = 5.0 + 0.36 + 0.36 = 5.72
+        # Net height = 2.5, ceiling thickness = 0.20
+        # Gross height = 2.5 + 0.20 = 2.7
+        # Gross area = 5.72 * 2.7 = 15.444
+        gross_area = wall.gross_area_m2(building, gross_height_m=2.7)
+        assert gross_area == pytest.approx(15.444)
+
 
 class TestRoom:
     """Tests for Room model."""
 
     def test_room_creation(self):
-        area = Area(length_m=5.0, width_m=4.0)
+        no_wall = Construction(
+            name="No Wall",
+            element_type=ConstructionType.INTERNAL_WALL,
+            u_value_w_m2k=0.5,
+            thickness_m=0.0
+        )
+        area = Area(
+            length_m=5.0,
+            width_m=4.0,
+            left_adjacent_name="No Wall",
+            right_adjacent_name="No Wall",
+            top_adjacent_name="No Wall",
+            bottom_adjacent_name="No Wall"
+        )
         room = Room(
             name="Living Room",
             areas=[area],
@@ -249,8 +668,28 @@ class TestRoom:
         assert room.volume_m3 == 50.0
 
     def test_room_multiple_areas(self):
-        area1 = Area(length_m=5.0, width_m=4.0)
-        area2 = Area(length_m=2.0, width_m=3.0)
+        no_wall = Construction(
+            name="No Wall",
+            element_type=ConstructionType.INTERNAL_WALL,
+            u_value_w_m2k=0.5,
+            thickness_m=0.0
+        )
+        area1 = Area(
+            length_m=5.0,
+            width_m=4.0,
+            left_adjacent_name="No Wall",
+            right_adjacent_name="No Wall",
+            top_adjacent_name="No Wall",
+            bottom_adjacent_name="No Wall"
+        )
+        area2 = Area(
+            length_m=2.0,
+            width_m=3.0,
+            left_adjacent_name="No Wall",
+            right_adjacent_name="No Wall",
+            top_adjacent_name="No Wall",
+            bottom_adjacent_name="No Wall"
+        )
         room = Room(
             name="L-Shaped Room",
             areas=[area1, area2],
@@ -274,26 +713,26 @@ class TestRoom:
 
     def test_room_elements_property(self):
         window = Element(
-            type="window",
+            type=ElementType.WINDOW,
             name="Window 1",
             construction_name="Window Type A",
             width_m=1.2,
             height_m=1.5,
         )
         door = Element(
-            type="door",
+            type=ElementType.DOOR,
             name="Door 1",
             construction_name="Door Type A",
             width_m=0.9,
             height_m=2.1,
         )
         floor = Element(
-            type="floor",
+            type=ElementType.FLOOR,
             name="Floor 1",
             construction_name="Floor Type A",
         )
         ceiling = Element(
-            type="ceiling",
+            type=ElementType.CEILING,
             name="Ceiling 1",
             construction_name="Ceiling Type A",
         )
@@ -315,6 +754,153 @@ class TestRoom:
         )
         elements = room.elements
         assert len(elements) == 4  # window, door, floor, ceiling
+
+    def test_room_gross_height(self):
+        """Test Room.gross_height_m() with ceiling thickness."""
+        ceiling = Construction(
+            name="Ceiling",
+            element_type=ConstructionType.CEILING,
+            u_value_w_m2k=0.2,
+            thickness_m=0.20
+        )
+        building = Building(
+            name="Test Building",
+            construction_catalog=[ceiling]
+        )
+
+        ceiling_elem = Element(
+            type=ElementType.CEILING,
+            name="Ceiling 1",
+            construction_name="Ceiling"
+        )
+        room = Room(
+            name="Test Room",
+            net_height_m=2.5,
+            ceiling=ceiling_elem
+        )
+
+        # Gross height = 2.5 + 0.20 = 2.7
+        gross_height = room.gross_height_m(building)
+        assert gross_height == pytest.approx(2.7)
+
+    def test_room_gross_height_no_ceiling(self):
+        """Test Room.gross_height_m() without ceiling."""
+        building = Building(name="Test Building")
+        room = Room(name="Test Room", net_height_m=2.5)
+
+        # Gross height = net height when no ceiling
+        gross_height = room.gross_height_m(building)
+        assert gross_height == 2.5
+
+    def test_room_gross_floor_area(self):
+        """Test Room.gross_floor_area_m2() calculation."""
+        external_wall = Construction(
+            name="External Wall",
+            element_type=ConstructionType.EXTERNAL_WALL,
+            u_value_w_m2k=0.24,
+            thickness_m=0.36
+        )
+        internal_wall = Construction(
+            name="Internal Wall",
+            element_type=ConstructionType.INTERNAL_WALL,
+            u_value_w_m2k=0.5,
+            thickness_m=0.12
+        )
+        floor_construction = Construction(
+            name="Floor",
+            element_type=ConstructionType.FLOOR,
+            u_value_w_m2k=0.3,
+            thickness_m=0.25
+        )
+        building = Building(
+            name="Test Building",
+            construction_catalog=[external_wall, internal_wall, floor_construction]
+        )
+
+        area = Area(
+            length_m=5.0,
+            width_m=4.0,
+            left_adjacent_name="External Wall",
+            right_adjacent_name="Internal Wall",
+            top_adjacent_name="External Wall",
+            bottom_adjacent_name="Internal Wall"
+        )
+        floor_elem = Element(
+            type=ElementType.FLOOR,
+            name="Floor",
+            construction_name="Floor"
+        )
+        room = Room(
+            name="Test Room",
+            areas=[area],
+            net_height_m=2.5,
+            floor=floor_elem
+        )
+
+        # Gross length = 5.0 + 0.36 (external top) + 0.06 (internal bottom half) = 5.42
+        # Gross width = 4.0 + 0.36 (external left) + 0.06 (internal right half) = 4.42
+        # Gross area = 5.42 * 4.42 = 23.9564
+        gross_floor = room.gross_floor_area_m2(building)
+        assert gross_floor == pytest.approx(23.9564)
+
+    def test_room_gross_ceiling_area(self):
+        """Test Room.gross_ceiling_area_m2() calculation."""
+        external_wall = Construction(
+            name="External Wall",
+            element_type=ConstructionType.EXTERNAL_WALL,
+            u_value_w_m2k=0.24,
+            thickness_m=0.36
+        )
+        ceiling_construction = Construction(
+            name="Ceiling",
+            element_type=ConstructionType.CEILING,
+            u_value_w_m2k=0.2,
+            thickness_m=0.20
+        )
+        no_wall = Construction(
+            name="No Wall",
+            element_type=ConstructionType.INTERNAL_WALL,
+            u_value_w_m2k=0.5,
+            thickness_m=0.0
+        )
+        building = Building(
+            name="Test Building",
+            construction_catalog=[external_wall, ceiling_construction, no_wall]
+        )
+
+        area1 = Area(
+            length_m=5.0,
+            width_m=4.0,
+            left_adjacent_name="External Wall",
+            right_adjacent_name="External Wall",
+            top_adjacent_name="External Wall",
+            bottom_adjacent_name="External Wall"
+        )
+        area2 = Area(
+            length_m=2.0,
+            width_m=3.0,
+            left_adjacent_name="No Wall",
+            right_adjacent_name="No Wall",
+            top_adjacent_name="No Wall",
+            bottom_adjacent_name="No Wall"
+        )
+        ceiling_elem = Element(
+            type=ElementType.CEILING,
+            name="Ceiling",
+            construction_name="Ceiling"
+        )
+        room = Room(
+            name="L-Shaped Room",
+            areas=[area1, area2],
+            net_height_m=2.5,
+            ceiling=ceiling_elem
+        )
+
+        # Area 1: (5.0 + 0.72) * (4.0 + 0.72) = 5.72 * 4.72 = 26.9984
+        # Area 2: 2.0 * 3.0 = 6.0
+        # Total = 32.9984
+        gross_ceiling = room.gross_ceiling_area_m2(building)
+        assert gross_ceiling == pytest.approx(32.9984)
 
 
 class TestBuilding:
@@ -418,7 +1004,20 @@ class TestBuilding:
         assert building.default_room_temperature.value_celsius == 20.0
 
     def test_building_with_rooms(self):
-        area = Area(length_m=5.0, width_m=4.0)
+        no_wall = Construction(
+            name="No Wall",
+            element_type=ConstructionType.INTERNAL_WALL,
+            u_value_w_m2k=0.5,
+            thickness_m=0.0
+        )
+        area = Area(
+            length_m=5.0,
+            width_m=4.0,
+            left_adjacent_name="No Wall",
+            right_adjacent_name="No Wall",
+            top_adjacent_name="No Wall",
+            bottom_adjacent_name="No Wall"
+        )
         room = Room(name="Living Room", areas=[area], net_height_m=2.5)
         building = Building(name="Test Building", rooms=[room])
         assert len(building.rooms) == 1
@@ -485,20 +1084,20 @@ class TestIntegration:
 
         # Create room with elements
         window_elem = Element(
-            type="window",
+            type=ElementType.WINDOW,
             name="Window 1",
             construction_name="Window",
             width_m=1.2,
             height_m=1.5,
         )
         floor_elem = Element(
-            type="floor",
+            type=ElementType.FLOOR,
             name="Floor",
             construction_name="Floor",
             adjacent_temperature_name="Basement",
         )
         ceiling_elem = Element(
-            type="ceiling",
+            type=ElementType.CEILING,
             name="Ceiling",
             construction_name="Ceiling",
         )
