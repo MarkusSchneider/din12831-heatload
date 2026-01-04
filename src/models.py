@@ -79,7 +79,7 @@ class Area(BaseModel):
         Bruttolänge = Länge + obere Wanddicke + untere Wanddicke
         Bruttobreite = Breite + linke Wanddicke + rechte Wanddicke
         Bruttofläche = Bruttolänge × Bruttobreite
-        
+
         Für interne Grenzen zwischen Flächen (z.B. L-Form) wird eine Konstruktion mit Dicke=0 verwendet.
         """
         left_thickness = get_adjacent_thickness(building, self.left_adjacent_name)
@@ -230,11 +230,11 @@ class Wall(BaseModel):
 
 
 class Room(BaseModel):
-    """Raum mit allen Bauelementen für Heizlastberechnung.
+    """
+    Raum mit allen Bauelementen für Heizlastberechnung.
 
-    Repräsentiert einen Raum mit Grundflächen (Areas), Wänden, Boden, Decke und
-    Lüftungsparametern. Berechnet Netto- und Bruttoflächen/-volumina für die
-    Wärmeverlustberechnung nach DIN 12831.
+    Repräsentiert einen Raum mit Grundflächen (Areas), Wänden, Boden, Decke und Lüftungsparametern. 
+    Berechnet Netto- und Bruttoflächen/-volumina für die Wärmeverlustberechnung nach DIN 12831.
     """
     name: str
     areas: list[Area] | None = Field(
@@ -315,8 +315,8 @@ class Room(BaseModel):
 class Building(BaseModel):
     """Gebäude mit Katalogen und Räumen.
 
-    Zentrales Objekt für die Heizlastberechnung nach DIN 12831. Enthält
-    Temperatur- und Konstruktionskataloge sowie alle Räume des Gebäudes.
+    Zentrales Objekt für die Heizlastberechnung nach DIN 12831. 
+    Enthält Temperatur- und Konstruktionskataloge sowie alle Räume des Gebäudes.
     Verwaltet globale Parameter wie Wärmebrückenzuschlag.
     """
     name: str
@@ -361,8 +361,8 @@ class Building(BaseModel):
 # =============================================================================
 
 def get_adjacent_thickness(building: Building, adjacent_name: str) -> float:
-    """Hilfsfunktion: Berechnet die Dicke eines angrenzenden Bauteils nach Name.
-
+    """
+    Hilfsfunktion: Berechnet die Dicke eines angrenzenden Bauteils nach Name.
     Diese Funktion kombiniert Katalog-Lookup und Dickenberechnung.
 
     Args:
