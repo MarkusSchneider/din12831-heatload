@@ -7,10 +7,10 @@ echo ""
 # Prüfen ob Virtual Environment aktiv ist
 if [ -z "$VIRTUAL_ENV" ]; then
     echo "⚠️  Aktiviere Virtual Environment..."
-    if [ -f ".venv/bin/activate" ]; then
-        source .venv/bin/activate
-    elif [ -f "venv/bin/activate" ]; then
-        source venv/bin/activate
+    activate_script=$(find .venv -type f -name "activate" | head -n 1)
+
+    if [ -n "$activate_script" ]; then
+        source "$activate_script"
     else
         echo "❌ Kein Virtual Environment gefunden!"
         echo "   Bitte erstellen: python -m venv .venv"
@@ -61,7 +61,7 @@ if [ -f "dist/din12831-heatload" ]; then
     echo ""
     echo "🚀 Starten mit: ./dist/din12831-heatload"
     echo ""
-    
+
     # Dateigrößen anzeigen
     SIZE=$(du -h dist/din12831-heatload | cut -f1)
     echo "📊 Größe: $SIZE"
