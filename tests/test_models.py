@@ -38,7 +38,7 @@ class TestConstruction:
             name="External Wall 1",
             element_type=ConstructionType.EXTERNAL_WALL,
             u_value_w_m2k=0.24,
-            thickness_m=0.36,
+            thickness_mm=360.0,
         )
         assert construction.name == "External Wall 1"
         assert construction.element_type == ConstructionType.EXTERNAL_WALL
@@ -46,7 +46,7 @@ class TestConstruction:
         assert construction.thickness_m == 0.36
 
     def test_construction_default_type(self):
-        construction = Construction(name="Test", u_value_w_m2k=0.5, thickness_m=0.3)
+        construction = Construction(name="Test", u_value_w_m2k=0.5, thickness_mm=300.0)
         assert construction.element_type == ConstructionType.EXTERNAL_WALL
 
     def test_construction_no_thickness(self):
@@ -59,31 +59,31 @@ class TestConstruction:
 
     def test_construction_negative_thickness(self):
         with pytest.raises(ValidationError):
-            Construction(name="Bad", u_value_w_m2k=0.5, thickness_m=-0.1)
+            Construction(name="Bad", u_value_w_m2k=0.5, thickness_mm=-0.1)
 
     def test_construction_requires_thickness_for_walls(self):
         """Test that external walls require thickness."""
         with pytest.raises(ValidationError) as exc_info:
             Construction(name="External Wall", element_type=ConstructionType.EXTERNAL_WALL, u_value_w_m2k=0.24)
-        assert "requires thickness_m to be set" in str(exc_info.value)
+        assert "requires thickness_mm to be set" in str(exc_info.value)
 
     def test_construction_requires_thickness_for_internal_walls(self):
         """Test that internal walls require thickness."""
         with pytest.raises(ValidationError) as exc_info:
             Construction(name="Internal Wall", element_type=ConstructionType.INTERNAL_WALL, u_value_w_m2k=0.5)
-        assert "requires thickness_m to be set" in str(exc_info.value)
+        assert "requires thickness_mm to be set" in str(exc_info.value)
 
     def test_construction_requires_thickness_for_floor(self):
         """Test that floors require thickness."""
         with pytest.raises(ValidationError) as exc_info:
             Construction(name="Floor", element_type=ConstructionType.FLOOR, u_value_w_m2k=0.3)
-        assert "requires thickness_m to be set" in str(exc_info.value)
+        assert "requires thickness_mm to be set" in str(exc_info.value)
 
     def test_construction_requires_thickness_for_ceiling(self):
         """Test that ceilings require thickness."""
         with pytest.raises(ValidationError) as exc_info:
             Construction(name="Ceiling", element_type=ConstructionType.CEILING, u_value_w_m2k=0.2)
-        assert "requires thickness_m to be set" in str(exc_info.value)
+        assert "requires thickness_mm to be set" in str(exc_info.value)
 
     def test_construction_no_thickness_required_for_window(self):
         """Test that windows don't require thickness."""
@@ -98,28 +98,28 @@ class TestConstruction:
     def test_get_adjacent_thickness_external_wall(self):
         """Test that external walls return full thickness."""
         construction = Construction(
-            name="External Wall", element_type=ConstructionType.EXTERNAL_WALL, u_value_w_m2k=0.24, thickness_m=0.36
+            name="External Wall", element_type=ConstructionType.EXTERNAL_WALL, u_value_w_m2k=0.24, thickness_mm=360.0
         )
         assert construction.get_adjacent_thickness() == 0.36
 
     def test_get_adjacent_thickness_internal_wall(self):
         """Test that internal walls return half thickness."""
         construction = Construction(
-            name="Internal Wall", element_type=ConstructionType.INTERNAL_WALL, u_value_w_m2k=0.5, thickness_m=0.12
+            name="Internal Wall", element_type=ConstructionType.INTERNAL_WALL, u_value_w_m2k=0.5, thickness_mm=120.0
         )
         assert construction.get_adjacent_thickness() == pytest.approx(0.06)
 
     def test_get_adjacent_thickness_floor(self):
         """Test that floors return half thickness."""
         construction = Construction(
-            name="Floor", element_type=ConstructionType.FLOOR, u_value_w_m2k=0.3, thickness_m=0.25
+            name="Floor", element_type=ConstructionType.FLOOR, u_value_w_m2k=0.3, thickness_mm=250.0
         )
         assert construction.get_adjacent_thickness() == pytest.approx(0.125)
 
     def test_get_adjacent_thickness_ceiling(self):
         """Test that ceilings return half thickness."""
         construction = Construction(
-            name="Ceiling", element_type=ConstructionType.CEILING, u_value_w_m2k=0.2, thickness_m=0.30
+            name="Ceiling", element_type=ConstructionType.CEILING, u_value_w_m2k=0.2, thickness_mm=300.0
         )
         assert construction.get_adjacent_thickness() == pytest.approx(0.15)
 
@@ -146,7 +146,7 @@ class TestGetAdjacentThickness:
     def test_get_adjacent_thickness_external_wall(self):
         """Test that external walls return full thickness."""
         external_wall = Construction(
-            name="External Wall", element_type=ConstructionType.EXTERNAL_WALL, u_value_w_m2k=0.24, thickness_m=0.36
+            name="External Wall", element_type=ConstructionType.EXTERNAL_WALL, u_value_w_m2k=0.24, thickness_mm=360.0
         )
         building = Building(name="Test Building", construction_catalog=[external_wall])
 
@@ -156,7 +156,7 @@ class TestGetAdjacentThickness:
     def test_get_adjacent_thickness_internal_wall(self):
         """Test that internal walls return half thickness."""
         internal_wall = Construction(
-            name="Internal Wall", element_type=ConstructionType.INTERNAL_WALL, u_value_w_m2k=0.5, thickness_m=0.12
+            name="Internal Wall", element_type=ConstructionType.INTERNAL_WALL, u_value_w_m2k=0.5, thickness_mm=120.0
         )
         building = Building(name="Test Building", construction_catalog=[internal_wall])
 
@@ -165,7 +165,7 @@ class TestGetAdjacentThickness:
 
     def test_get_adjacent_thickness_floor(self):
         """Test that floors return half thickness."""
-        floor = Construction(name="Floor", element_type=ConstructionType.FLOOR, u_value_w_m2k=0.3, thickness_m=0.25)
+        floor = Construction(name="Floor", element_type=ConstructionType.FLOOR, u_value_w_m2k=0.3, thickness_mm=250.0)
         building = Building(name="Test Building", construction_catalog=[floor])
 
         thickness = get_adjacent_thickness(building, "Floor")
@@ -174,7 +174,7 @@ class TestGetAdjacentThickness:
     def test_get_adjacent_thickness_ceiling(self):
         """Test that ceilings return half thickness."""
         ceiling = Construction(
-            name="Ceiling", element_type=ConstructionType.CEILING, u_value_w_m2k=0.2, thickness_m=0.20
+            name="Ceiling", element_type=ConstructionType.CEILING, u_value_w_m2k=0.2, thickness_mm=200.0
         )
         building = Building(name="Test Building", construction_catalog=[ceiling])
 
@@ -373,10 +373,10 @@ class TestWall:
     def test_wall_gross_length_with_adjacents(self):
         """Test Wall.gross_length_m() with adjacent walls."""
         external_wall = Construction(
-            name="External Wall", element_type=ConstructionType.EXTERNAL_WALL, u_value_w_m2k=0.24, thickness_m=0.36
+            name="External Wall", element_type=ConstructionType.EXTERNAL_WALL, u_value_w_m2k=0.24, thickness_mm=360.0
         )
         internal_wall = Construction(
-            name="Internal Wall", element_type=ConstructionType.INTERNAL_WALL, u_value_w_m2k=0.5, thickness_m=0.12
+            name="Internal Wall", element_type=ConstructionType.INTERNAL_WALL, u_value_w_m2k=0.5, thickness_mm=120.0
         )
         building = Building(name="Test Building", construction_catalog=[external_wall, internal_wall])
 
@@ -395,7 +395,7 @@ class TestWall:
     def test_wall_gross_length_no_adjacents(self):
         """Test Wall.gross_length_m() with simple same-type adjacent walls."""
         external_wall = Construction(
-            name="External Wall", element_type=ConstructionType.EXTERNAL_WALL, u_value_w_m2k=0.24, thickness_m=0.36
+            name="External Wall", element_type=ConstructionType.EXTERNAL_WALL, u_value_w_m2k=0.24, thickness_mm=360.0
         )
         building = Building(name="Test Building", construction_catalog=[external_wall])
 
@@ -414,10 +414,10 @@ class TestWall:
     def test_wall_gross_area(self):
         """Test Wall.gross_area_m2() calculation."""
         external_wall = Construction(
-            name="External Wall", element_type=ConstructionType.EXTERNAL_WALL, u_value_w_m2k=0.24, thickness_m=0.36
+            name="External Wall", element_type=ConstructionType.EXTERNAL_WALL, u_value_w_m2k=0.24, thickness_mm=360.0
         )
         ceiling = Construction(
-            name="Ceiling", element_type=ConstructionType.CEILING, u_value_w_m2k=0.2, thickness_m=0.20
+            name="Ceiling", element_type=ConstructionType.CEILING, u_value_w_m2k=0.2, thickness_mm=200.0
         )
         building = Building(name="Test Building", construction_catalog=[external_wall, ceiling])
 
@@ -488,7 +488,7 @@ class TestRoom:
     def test_room_gross_height(self):
         """Test Room.gross_height_m() with ceiling thickness."""
         ceiling = Construction(
-            name="Ceiling", element_type=ConstructionType.CEILING, u_value_w_m2k=0.2, thickness_m=0.20
+            name="Ceiling", element_type=ConstructionType.CEILING, u_value_w_m2k=0.2, thickness_mm=200.0
         )
         building = Building(name="Test Building", construction_catalog=[ceiling])
 
@@ -511,13 +511,13 @@ class TestRoom:
     def test_room_gross_floor_area(self):
         """Test Room.gross_floor_area_m2() calculation mit wandbasierter Berechnung."""
         external_wall = Construction(
-            name="External Wall", element_type=ConstructionType.EXTERNAL_WALL, u_value_w_m2k=0.24, thickness_m=0.36
+            name="External Wall", element_type=ConstructionType.EXTERNAL_WALL, u_value_w_m2k=0.24, thickness_mm=360.0
         )
         internal_wall = Construction(
-            name="Internal Wall", element_type=ConstructionType.INTERNAL_WALL, u_value_w_m2k=0.5, thickness_m=0.12
+            name="Internal Wall", element_type=ConstructionType.INTERNAL_WALL, u_value_w_m2k=0.5, thickness_mm=120.0
         )
         floor_construction = Construction(
-            name="Floor", element_type=ConstructionType.FLOOR, u_value_w_m2k=0.3, thickness_m=0.15
+            name="Floor", element_type=ConstructionType.FLOOR, u_value_w_m2k=0.3, thickness_mm=150.0
         )
         building = Building(
             name="Test Building", construction_catalog=[external_wall, internal_wall, floor_construction]
@@ -581,10 +581,10 @@ class TestRoom:
     def test_room_gross_ceiling_area(self):
         """Test Room.gross_ceiling_area_m2() calculation mit wandbasierter Berechnung."""
         external_wall = Construction(
-            name="External Wall", element_type=ConstructionType.EXTERNAL_WALL, u_value_w_m2k=0.24, thickness_m=0.36
+            name="External Wall", element_type=ConstructionType.EXTERNAL_WALL, u_value_w_m2k=0.24, thickness_mm=360.0
         )
         ceiling_construction = Construction(
-            name="Ceiling", element_type=ConstructionType.CEILING, u_value_w_m2k=0.2, thickness_m=0.20
+            name="Ceiling", element_type=ConstructionType.CEILING, u_value_w_m2k=0.2, thickness_mm=200.0
         )
         building = Building(name="Test Building", construction_catalog=[external_wall, ceiling_construction])
 
@@ -710,7 +710,7 @@ class TestBuilding:
             name="External Wall 1",
             element_type=ConstructionType.EXTERNAL_WALL,
             u_value_w_m2k=0.24,
-            thickness_m=0.36,
+            thickness_mm=360.0,
         )
         const2 = Construction(
             name="Window 1",
@@ -728,7 +728,7 @@ class TestBuilding:
             name="External Wall 1",
             element_type=ConstructionType.EXTERNAL_WALL,
             u_value_w_m2k=0.24,
-            thickness_m=0.36,
+            thickness_mm=360.0,
         )
         building = Building(
             name="Test Building",
@@ -798,13 +798,13 @@ class TestIntegration:
             name="External Wall",
             element_type=ConstructionType.EXTERNAL_WALL,
             u_value_w_m2k=0.24,
-            thickness_m=0.36,
+            thickness_mm=360.0,
         )
         int_wall = Construction(
             name="Internal Wall",
             element_type=ConstructionType.INTERNAL_WALL,
             u_value_w_m2k=0.5,
-            thickness_m=0.12,
+            thickness_mm=120.0,
         )
         window = Construction(
             name="Window",
@@ -815,13 +815,13 @@ class TestIntegration:
             name="Floor",
             element_type=ConstructionType.FLOOR,
             u_value_w_m2k=0.3,
-            thickness_m=0.25,
+            thickness_mm=250.0,
         )
         ceiling_const = Construction(
             name="Ceiling",
             element_type=ConstructionType.CEILING,
             u_value_w_m2k=0.2,
-            thickness_m=0.20,
+            thickness_mm=200.0,
         )
 
         # Create building

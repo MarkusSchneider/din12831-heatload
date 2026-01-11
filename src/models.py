@@ -86,7 +86,7 @@ class Construction(BaseModel):
     name: str
     element_type: ConstructionType = Field(default=ConstructionType.EXTERNAL_WALL, description="Bauteiltyp")
     u_value_w_m2k: float = Field(gt=0, description="U-Wert in W/(m²·K)")
-    thickness_m: float | None = Field(default=None, ge=0, description="Dicke (nur für Wand/Decke/Boden)")
+    thickness_mm: float | None = Field(default=None, ge=0, description="Dicke in mm (nur für Wand/Decke/Boden)")
 
     _TYPES_REQUIRING_THICKNESS: ClassVar[set[ConstructionType]] = {
         ConstructionType.EXTERNAL_WALL,
@@ -95,11 +95,22 @@ class Construction(BaseModel):
         ConstructionType.CEILING,
     }
 
+    @property
+    def thickness_m(self) -> float | None:
+        """Converts thickness from millimeters to meters for internal calculations.
+
+        Returns:
+            Thickness in meters, or None if thickness_mm is None
+        """
+        if self.thickness_mm is None:
+            return None
+        return self.thickness_mm / 1000.0
+
     @model_validator(mode="after")
     def validate_thickness(self):
         """Validiere, dass Wände, Böden und Decken eine Dicke haben."""
-        if self.element_type in Construction._TYPES_REQUIRING_THICKNESS and self.thickness_m is None:
-            raise ValueError(f"Construction type '{self.element_type.value}' requires thickness_m to be set")
+        if self.element_type in Construction._TYPES_REQUIRING_THICKNESS and self.thickness_mm is None:
+            raise ValueError(f"Construction type '{self.element_type.value}' requires thickness_mm to be set")
         return self
 
     def get_adjacent_thickness(self) -> float:
