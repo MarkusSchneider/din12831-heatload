@@ -38,15 +38,15 @@ class TestConstruction:
             name="External Wall 1",
             element_type=ConstructionType.EXTERNAL_WALL,
             u_value_w_m2k=0.24,
-            thickness_m=0.36,
+            thickness_mm=360.0,
         )
         assert construction.name == "External Wall 1"
         assert construction.element_type == ConstructionType.EXTERNAL_WALL
-        assert construction.u_value_w_m2k == 0.24
-        assert construction.thickness_m == 0.36
+        assert construction.u_value_w_m2k == pytest.approx(0.24)
+        assert construction.thickness_m == pytest.approx(0.36)
 
     def test_construction_default_type(self):
-        construction = Construction(name="Test", u_value_w_m2k=0.5, thickness_m=0.3)
+        construction = Construction(name="Test", u_value_w_m2k=0.5, thickness_mm=300.0)
         assert construction.element_type == ConstructionType.EXTERNAL_WALL
 
     def test_construction_no_thickness(self):
@@ -59,31 +59,31 @@ class TestConstruction:
 
     def test_construction_negative_thickness(self):
         with pytest.raises(ValidationError):
-            Construction(name="Bad", u_value_w_m2k=0.5, thickness_m=-0.1)
+            Construction(name="Bad", u_value_w_m2k=0.5, thickness_mm=-0.1)
 
     def test_construction_requires_thickness_for_walls(self):
         """Test that external walls require thickness."""
         with pytest.raises(ValidationError) as exc_info:
             Construction(name="External Wall", element_type=ConstructionType.EXTERNAL_WALL, u_value_w_m2k=0.24)
-        assert "requires thickness_m to be set" in str(exc_info.value)
+        assert "requires thickness_mm to be set" in str(exc_info.value)
 
     def test_construction_requires_thickness_for_internal_walls(self):
         """Test that internal walls require thickness."""
         with pytest.raises(ValidationError) as exc_info:
             Construction(name="Internal Wall", element_type=ConstructionType.INTERNAL_WALL, u_value_w_m2k=0.5)
-        assert "requires thickness_m to be set" in str(exc_info.value)
+        assert "requires thickness_mm to be set" in str(exc_info.value)
 
     def test_construction_requires_thickness_for_floor(self):
         """Test that floors require thickness."""
         with pytest.raises(ValidationError) as exc_info:
             Construction(name="Floor", element_type=ConstructionType.FLOOR, u_value_w_m2k=0.3)
-        assert "requires thickness_m to be set" in str(exc_info.value)
+        assert "requires thickness_mm to be set" in str(exc_info.value)
 
     def test_construction_requires_thickness_for_ceiling(self):
         """Test that ceilings require thickness."""
         with pytest.raises(ValidationError) as exc_info:
             Construction(name="Ceiling", element_type=ConstructionType.CEILING, u_value_w_m2k=0.2)
-        assert "requires thickness_m to be set" in str(exc_info.value)
+        assert "requires thickness_mm to be set" in str(exc_info.value)
 
     def test_construction_no_thickness_required_for_window(self):
         """Test that windows don't require thickness."""
@@ -98,28 +98,28 @@ class TestConstruction:
     def test_get_adjacent_thickness_external_wall(self):
         """Test that external walls return full thickness."""
         construction = Construction(
-            name="External Wall", element_type=ConstructionType.EXTERNAL_WALL, u_value_w_m2k=0.24, thickness_m=0.36
+            name="External Wall", element_type=ConstructionType.EXTERNAL_WALL, u_value_w_m2k=0.24, thickness_mm=360.0
         )
-        assert construction.get_adjacent_thickness() == 0.36
+        assert construction.get_adjacent_thickness() == pytest.approx(0.36)
 
     def test_get_adjacent_thickness_internal_wall(self):
         """Test that internal walls return half thickness."""
         construction = Construction(
-            name="Internal Wall", element_type=ConstructionType.INTERNAL_WALL, u_value_w_m2k=0.5, thickness_m=0.12
+            name="Internal Wall", element_type=ConstructionType.INTERNAL_WALL, u_value_w_m2k=0.5, thickness_mm=120.0
         )
         assert construction.get_adjacent_thickness() == pytest.approx(0.06)
 
     def test_get_adjacent_thickness_floor(self):
         """Test that floors return half thickness."""
         construction = Construction(
-            name="Floor", element_type=ConstructionType.FLOOR, u_value_w_m2k=0.3, thickness_m=0.25
+            name="Floor", element_type=ConstructionType.FLOOR, u_value_w_m2k=0.3, thickness_mm=250.0
         )
         assert construction.get_adjacent_thickness() == pytest.approx(0.125)
 
     def test_get_adjacent_thickness_ceiling(self):
         """Test that ceilings return half thickness."""
         construction = Construction(
-            name="Ceiling", element_type=ConstructionType.CEILING, u_value_w_m2k=0.2, thickness_m=0.30
+            name="Ceiling", element_type=ConstructionType.CEILING, u_value_w_m2k=0.2, thickness_mm=300.0
         )
         assert construction.get_adjacent_thickness() == pytest.approx(0.15)
 
@@ -146,40 +146,40 @@ class TestGetAdjacentThickness:
     def test_get_adjacent_thickness_external_wall(self):
         """Test that external walls return full thickness."""
         external_wall = Construction(
-            name="External Wall", element_type=ConstructionType.EXTERNAL_WALL, u_value_w_m2k=0.24, thickness_m=0.36
+            name="External Wall", element_type=ConstructionType.EXTERNAL_WALL, u_value_w_m2k=0.24, thickness_mm=360.0
         )
         building = Building(name="Test Building", construction_catalog=[external_wall])
 
         thickness = get_adjacent_thickness(building, "External Wall")
-        assert thickness == 0.36
+        assert thickness == pytest.approx(0.36)
 
     def test_get_adjacent_thickness_internal_wall(self):
         """Test that internal walls return half thickness."""
         internal_wall = Construction(
-            name="Internal Wall", element_type=ConstructionType.INTERNAL_WALL, u_value_w_m2k=0.5, thickness_m=0.12
+            name="Internal Wall", element_type=ConstructionType.INTERNAL_WALL, u_value_w_m2k=0.5, thickness_mm=120.0
         )
         building = Building(name="Test Building", construction_catalog=[internal_wall])
 
         thickness = get_adjacent_thickness(building, "Internal Wall")
-        assert thickness == 0.06  # Half of 0.12
+        assert thickness == pytest.approx(0.06)  # Half of 0.12
 
     def test_get_adjacent_thickness_floor(self):
         """Test that floors return half thickness."""
-        floor = Construction(name="Floor", element_type=ConstructionType.FLOOR, u_value_w_m2k=0.3, thickness_m=0.25)
+        floor = Construction(name="Floor", element_type=ConstructionType.FLOOR, u_value_w_m2k=0.3, thickness_mm=250.0)
         building = Building(name="Test Building", construction_catalog=[floor])
 
         thickness = get_adjacent_thickness(building, "Floor")
-        assert thickness == 0.125  # Half of 0.25
+        assert thickness == pytest.approx(0.125)  # Half of 0.25
 
     def test_get_adjacent_thickness_ceiling(self):
         """Test that ceilings return half thickness."""
         ceiling = Construction(
-            name="Ceiling", element_type=ConstructionType.CEILING, u_value_w_m2k=0.2, thickness_m=0.20
+            name="Ceiling", element_type=ConstructionType.CEILING, u_value_w_m2k=0.2, thickness_mm=200.0
         )
         building = Building(name="Test Building", construction_catalog=[ceiling])
 
         thickness = get_adjacent_thickness(building, "Ceiling")
-        assert thickness == 0.10  # Half of 0.20
+        assert thickness == pytest.approx(0.10)  # Half of 0.20
 
     def test_get_adjacent_thickness_construction_not_found(self):
         """Test that ValueError is raised when construction is not found."""
@@ -222,11 +222,11 @@ class TestTemperature:
     def test_temperature_creation(self):
         temp = Temperature(name="Living Room", value_celsius=20.0)
         assert temp.name == "Living Room"
-        assert temp.value_celsius == 20.0
+        assert temp.value_celsius == pytest.approx(20.0)
 
     def test_temperature_negative_values(self):
         temp = Temperature(name="Cold", value_celsius=-20.0)
-        assert temp.value_celsius == -20.0
+        assert temp.value_celsius == pytest.approx(-20.0)
 
 
 class TestElement:
@@ -277,7 +277,7 @@ class TestElement:
             name="Floor 1",
             construction_name="Floor Construction",
         )
-        assert element.area_m2 == 0.0
+        assert element.area_m2 == pytest.approx(0.0)
 
     def test_element_floor_with_adjacent_temperature(self):
         element = Element(
@@ -294,11 +294,11 @@ class TestVentilation:
 
     def test_ventilation_default(self):
         vent = Ventilation()
-        assert vent.air_change_1_h == 0.5
+        assert vent.air_change_1_h == pytest.approx(0.5)
 
     def test_ventilation_custom(self):
         vent = Ventilation(air_change_1_h=1.5)
-        assert vent.air_change_1_h == 1.5
+        assert vent.air_change_1_h == pytest.approx(1.5)
 
     def test_ventilation_negative_fails(self):
         with pytest.raises(ValidationError):
@@ -313,7 +313,7 @@ class TestArea:
             length_m=5.0,
             width_m=4.0,
         )
-        assert area.area_m2 == 20.0
+        assert area.area_m2 == pytest.approx(20.0)
 
 
 class TestWall:
@@ -328,7 +328,7 @@ class TestWall:
             right_wall_name="Right Wall",
         )
         assert wall.orientation == "North"
-        assert wall.net_length_m == 5.0
+        assert wall.net_length_m == pytest.approx(5.0)
         assert len(wall.windows) == 0
         assert len(wall.doors) == 0
 
@@ -373,10 +373,10 @@ class TestWall:
     def test_wall_gross_length_with_adjacents(self):
         """Test Wall.gross_length_m() with adjacent walls."""
         external_wall = Construction(
-            name="External Wall", element_type=ConstructionType.EXTERNAL_WALL, u_value_w_m2k=0.24, thickness_m=0.36
+            name="External Wall", element_type=ConstructionType.EXTERNAL_WALL, u_value_w_m2k=0.24, thickness_mm=360.0
         )
         internal_wall = Construction(
-            name="Internal Wall", element_type=ConstructionType.INTERNAL_WALL, u_value_w_m2k=0.5, thickness_m=0.12
+            name="Internal Wall", element_type=ConstructionType.INTERNAL_WALL, u_value_w_m2k=0.5, thickness_mm=120.0
         )
         building = Building(name="Test Building", construction_catalog=[external_wall, internal_wall])
 
@@ -395,7 +395,7 @@ class TestWall:
     def test_wall_gross_length_no_adjacents(self):
         """Test Wall.gross_length_m() with simple same-type adjacent walls."""
         external_wall = Construction(
-            name="External Wall", element_type=ConstructionType.EXTERNAL_WALL, u_value_w_m2k=0.24, thickness_m=0.36
+            name="External Wall", element_type=ConstructionType.EXTERNAL_WALL, u_value_w_m2k=0.24, thickness_mm=360.0
         )
         building = Building(name="Test Building", construction_catalog=[external_wall])
 
@@ -414,10 +414,10 @@ class TestWall:
     def test_wall_gross_area(self):
         """Test Wall.gross_area_m2() calculation."""
         external_wall = Construction(
-            name="External Wall", element_type=ConstructionType.EXTERNAL_WALL, u_value_w_m2k=0.24, thickness_m=0.36
+            name="External Wall", element_type=ConstructionType.EXTERNAL_WALL, u_value_w_m2k=0.24, thickness_mm=360.0
         )
         ceiling = Construction(
-            name="Ceiling", element_type=ConstructionType.CEILING, u_value_w_m2k=0.2, thickness_m=0.20
+            name="Ceiling", element_type=ConstructionType.CEILING, u_value_w_m2k=0.2, thickness_mm=200.0
         )
         building = Building(name="Test Building", construction_catalog=[external_wall, ceiling])
 
@@ -451,9 +451,9 @@ class TestRoom:
             net_height_m=2.5,
         )
         assert room.name == "Living Room"
-        assert room.net_height_m == 2.5
-        assert room.floor_area_m2 == 20.0
-        assert room.volume_m3 == 50.0
+        assert room.net_height_m == pytest.approx(2.5)
+        assert room.floor_area_m2 == pytest.approx(20.0)
+        assert room.volume_m3 == pytest.approx(50.0)
 
     def test_room_multiple_areas(self):
         area1 = Area(
@@ -469,13 +469,13 @@ class TestRoom:
             areas=[area1, area2],
             net_height_m=2.5,
         )
-        assert room.floor_area_m2 == 26.0
-        assert room.volume_m3 == 65.0
+        assert room.floor_area_m2 == pytest.approx(26.0)
+        assert room.volume_m3 == pytest.approx(65.0)
 
     def test_room_no_areas(self):
         room = Room(name="Empty Room", net_height_m=2.5)
-        assert room.floor_area_m2 == 0.0
-        assert room.volume_m3 == 0.0
+        assert room.floor_area_m2 == pytest.approx(0.0)
+        assert room.volume_m3 == pytest.approx(0.0)
 
     def test_room_with_ventilation(self):
         room = Room(
@@ -483,12 +483,12 @@ class TestRoom:
             net_height_m=2.5,
             ventilation=Ventilation(air_change_1_h=1.0),
         )
-        assert room.ventilation.air_change_1_h == 1.0
+        assert room.ventilation.air_change_1_h == pytest.approx(1.0)
 
     def test_room_gross_height(self):
         """Test Room.gross_height_m() with ceiling thickness."""
         ceiling = Construction(
-            name="Ceiling", element_type=ConstructionType.CEILING, u_value_w_m2k=0.2, thickness_m=0.20
+            name="Ceiling", element_type=ConstructionType.CEILING, u_value_w_m2k=0.2, thickness_mm=200.0
         )
         building = Building(name="Test Building", construction_catalog=[ceiling])
 
@@ -506,18 +506,18 @@ class TestRoom:
 
         # Gross height = net height when no ceiling
         gross_height = room.gross_height_m(building)
-        assert gross_height == 2.5
+        assert gross_height == pytest.approx(2.5)
 
     def test_room_gross_floor_area(self):
         """Test Room.gross_floor_area_m2() calculation mit wandbasierter Berechnung."""
         external_wall = Construction(
-            name="External Wall", element_type=ConstructionType.EXTERNAL_WALL, u_value_w_m2k=0.24, thickness_m=0.36
+            name="External Wall", element_type=ConstructionType.EXTERNAL_WALL, u_value_w_m2k=0.24, thickness_mm=360.0
         )
         internal_wall = Construction(
-            name="Internal Wall", element_type=ConstructionType.INTERNAL_WALL, u_value_w_m2k=0.5, thickness_m=0.12
+            name="Internal Wall", element_type=ConstructionType.INTERNAL_WALL, u_value_w_m2k=0.5, thickness_mm=120.0
         )
         floor_construction = Construction(
-            name="Floor", element_type=ConstructionType.FLOOR, u_value_w_m2k=0.3, thickness_m=0.15
+            name="Floor", element_type=ConstructionType.FLOOR, u_value_w_m2k=0.3, thickness_mm=150.0
         )
         building = Building(
             name="Test Building", construction_catalog=[external_wall, internal_wall, floor_construction]
@@ -581,10 +581,10 @@ class TestRoom:
     def test_room_gross_ceiling_area(self):
         """Test Room.gross_ceiling_area_m2() calculation mit wandbasierter Berechnung."""
         external_wall = Construction(
-            name="External Wall", element_type=ConstructionType.EXTERNAL_WALL, u_value_w_m2k=0.24, thickness_m=0.36
+            name="External Wall", element_type=ConstructionType.EXTERNAL_WALL, u_value_w_m2k=0.24, thickness_mm=360.0
         )
         ceiling_construction = Construction(
-            name="Ceiling", element_type=ConstructionType.CEILING, u_value_w_m2k=0.2, thickness_m=0.20
+            name="Ceiling", element_type=ConstructionType.CEILING, u_value_w_m2k=0.2, thickness_mm=200.0
         )
         building = Building(name="Test Building", construction_catalog=[external_wall, ceiling_construction])
 
@@ -674,7 +674,7 @@ class TestBuilding:
         assert len(building.temperature_catalog) == 0
         assert len(building.construction_catalog) == 0
         assert len(building.rooms) == 0
-        assert building.thermal_bridge_surcharge == 0.05
+        assert building.thermal_bridge_surcharge == pytest.approx(0.05)
 
     def test_building_with_temperature_catalog(self):
         temp1 = Temperature(name="Living Room", value_celsius=20.0)
@@ -693,7 +693,7 @@ class TestBuilding:
             temperature_catalog=[temp1, temp2],
         )
         found_temp = building.get_temperature_by_name("Living Room")
-        assert found_temp.value_celsius == 20.0
+        assert found_temp.value_celsius == pytest.approx(20.0)
 
     def test_building_get_temperature_not_found(self):
         building = Building(name="Test Building")
@@ -710,7 +710,7 @@ class TestBuilding:
             name="External Wall 1",
             element_type=ConstructionType.EXTERNAL_WALL,
             u_value_w_m2k=0.24,
-            thickness_m=0.36,
+            thickness_mm=360.0,
         )
         const2 = Construction(
             name="Window 1",
@@ -728,14 +728,14 @@ class TestBuilding:
             name="External Wall 1",
             element_type=ConstructionType.EXTERNAL_WALL,
             u_value_w_m2k=0.24,
-            thickness_m=0.36,
+            thickness_mm=360.0,
         )
         building = Building(
             name="Test Building",
             construction_catalog=[const1],
         )
         found_const = building.get_construction_by_name("External Wall 1")
-        assert found_const.u_value_w_m2k == 0.24
+        assert found_const.u_value_w_m2k == pytest.approx(0.24)
 
     def test_building_get_construction_not_found(self):
         building = Building(name="Test Building")
@@ -754,7 +754,7 @@ class TestBuilding:
             temperature_catalog=[temp_outside],
             outside_temperature_name="Outside",
         )
-        assert building.outside_temperature.value_celsius == -10.0
+        assert building.outside_temperature.value_celsius == pytest.approx(-10.0)
 
     def test_building_default_room_temperature_property(self):
         temp_room = Temperature(name="Default Room", value_celsius=20.0)
@@ -763,7 +763,7 @@ class TestBuilding:
             temperature_catalog=[temp_room],
             default_room_temperature_name="Default Room",
         )
-        assert building.default_room_temperature.value_celsius == 20.0
+        assert building.default_room_temperature.value_celsius == pytest.approx(20.0)
 
     def test_building_with_rooms(self):
         area = Area(
@@ -777,7 +777,7 @@ class TestBuilding:
 
     def test_building_thermal_bridge_surcharge_custom(self):
         building = Building(name="Test Building", thermal_bridge_surcharge=0.1)
-        assert building.thermal_bridge_surcharge == 0.1
+        assert building.thermal_bridge_surcharge == pytest.approx(0.1)
 
     def test_building_thermal_bridge_surcharge_negative_fails(self):
         with pytest.raises(ValidationError):
@@ -798,13 +798,13 @@ class TestIntegration:
             name="External Wall",
             element_type=ConstructionType.EXTERNAL_WALL,
             u_value_w_m2k=0.24,
-            thickness_m=0.36,
+            thickness_mm=360.0,
         )
         int_wall = Construction(
             name="Internal Wall",
             element_type=ConstructionType.INTERNAL_WALL,
             u_value_w_m2k=0.5,
-            thickness_m=0.12,
+            thickness_mm=120.0,
         )
         window = Construction(
             name="Window",
@@ -815,13 +815,13 @@ class TestIntegration:
             name="Floor",
             element_type=ConstructionType.FLOOR,
             u_value_w_m2k=0.3,
-            thickness_m=0.25,
+            thickness_mm=250.0,
         )
         ceiling_const = Construction(
             name="Ceiling",
             element_type=ConstructionType.CEILING,
             u_value_w_m2k=0.2,
-            thickness_m=0.20,
+            thickness_mm=200.0,
         )
 
         # Create building
@@ -886,13 +886,13 @@ class TestIntegration:
         assert len(building.temperature_catalog) == 3
         assert len(building.construction_catalog) == 5
         assert len(building.rooms) == 1
-        assert building.rooms[0].floor_area_m2 == 20.0
-        assert building.rooms[0].volume_m3 == 50.0
+        assert building.rooms[0].floor_area_m2 == pytest.approx(20.0)
+        assert building.rooms[0].volume_m3 == pytest.approx(50.0)
 
         # Test catalog lookups
-        assert building.outside_temperature.value_celsius == -10.0
-        assert building.default_room_temperature.value_celsius == 20.0
-        assert building.get_construction_by_name("External Wall").u_value_w_m2k == 0.24
+        assert building.outside_temperature.value_celsius == pytest.approx(-10.0)
+        assert building.default_room_temperature.value_celsius == pytest.approx(20.0)
+        assert building.get_construction_by_name("External Wall").u_value_w_m2k == pytest.approx(0.24)
 
         # Test gross calculations
         gross_floor = room.gross_floor_area_m2(building)

@@ -1099,19 +1099,19 @@ def render_neighbor_walls(wall: Wall) -> None:
         if wall.left_wall_name:
             left_wall = st.session_state.building.get_construction_by_name(wall.left_wall_name)
             if left_wall:
-                wall_thickness = left_wall.thickness_m or 0.0
+                wall_thickness_mm = left_wall.thickness_mm or 0.0
                 if left_wall.element_type == ConstructionType.INTERNAL_WALL:
-                    wall_thickness = wall_thickness / 2
-                st.write(f"⬅️ **Links:** {left_wall.name} (Dicke: {wall_thickness} m)")
+                    wall_thickness_mm = wall_thickness_mm / 2
+                st.write(f"⬅️ **Links:** {left_wall.name} (Dicke: {wall_thickness_mm:.1f} mm)")
 
     with neighbor_cols[1]:
         if wall.right_wall_name:
             right_wall = st.session_state.building.get_construction_by_name(wall.right_wall_name)
             if right_wall:
-                wall_thickness = right_wall.thickness_m or 0.0
+                wall_thickness_mm = right_wall.thickness_mm or 0.0
                 if right_wall.element_type == ConstructionType.INTERNAL_WALL:
-                    wall_thickness = wall_thickness / 2
-                st.write(f"➡️ **Rechts:** {right_wall.name} (Dicke: {wall_thickness} m)")
+                    wall_thickness_mm = wall_thickness_mm / 2
+                st.write(f"➡️ **Rechts:** {right_wall.name} (Dicke: {wall_thickness_mm:.1f} mm)")
 
 
 def render_existing_walls(room: Room, room_idx: int) -> None:

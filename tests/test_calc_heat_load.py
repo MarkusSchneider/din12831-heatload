@@ -34,13 +34,13 @@ def sample_constructions():
             name="Außenwand Standard",
             element_type=ConstructionType.EXTERNAL_WALL,
             u_value_w_m2k=0.24,
-            thickness_m=0.36,
+            thickness_mm=360.0,
         ),
         Construction(
             name="Innenwand Standard",
             element_type=ConstructionType.INTERNAL_WALL,
             u_value_w_m2k=0.5,
-            thickness_m=0.12,
+            thickness_mm=120.0,
         ),
         Construction(
             name="Fenster Dreifach",
@@ -56,13 +56,13 @@ def sample_constructions():
             name="Bodenplatte",
             element_type=ConstructionType.FLOOR,
             u_value_w_m2k=0.3,
-            thickness_m=0.25,
+            thickness_mm=250.0,
         ),
         Construction(
             name="Decke Standard",
             element_type=ConstructionType.CEILING,
             u_value_w_m2k=0.2,
-            thickness_m=0.30,
+            thickness_mm=300.0,
         ),
     ]
 
@@ -95,7 +95,7 @@ def simple_room(sample_building):
     """Erstellt einen einfachen Testraum."""
     # Add no_wall construction for internal boundaries
     no_wall = Construction(
-        name="No Wall", element_type=ConstructionType.INTERNAL_WALL, u_value_w_m2k=0.5, thickness_m=0.0
+        name="No Wall", element_type=ConstructionType.INTERNAL_WALL, u_value_w_m2k=0.5, thickness_mm=0.0
     )
     sample_building.construction_catalog.append(no_wall)
 
