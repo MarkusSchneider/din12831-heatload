@@ -1,9 +1,22 @@
+# Intellij IDEA project files
+.idea/
+
+# Python bytecode and virtual environment
 .venv/
 __pycache__/
 *.pyc
 .pytest_cache/
+
+# Streamlit specific files
 .streamlit/
+
+# macOS system files
 .DS_Store
+
+# distribution files
 dist/
 build/
-building_data.json
+
+# application files
+!building_data_Demo.json
+building_data*.json
