@@ -21,6 +21,23 @@ def initialize_session_state() -> None:
         st.session_state.building = load_building()
 
 
+def building_uploader_changed() -> None:
+    """callback function when building file is uploaded."""
+
+    uploaded_file = st.session_state.building_uploader
+    if uploaded_file is None:
+        return
+
+    try:
+        data = json.load(uploaded_file)
+        st.session_state.building = Building.model_validate(data)
+        st.success(f"✅ Datei '{uploaded_file.name}' erfolgreich geladen!")
+        # TODO: why is this needed? Nothing changed as it is a fresh load
+        # Speichere das geladene Gebäude direkt
+        save_building(st.session_state.building)
+    except Exception as e:
+        st.error(f"❌ Fehler beim Laden der Datei: {e}")
+
 def render_sidebar() -> None:
     """Rendert die Sidebar mit Gebäude-Einstellungen und Speicher-Optionen."""
     with st.sidebar:
@@ -28,19 +45,9 @@ def render_sidebar() -> None:
 
         # File Upload für Gebäudedaten
         st.subheader("📂 Datei laden")
-        uploaded_file = st.file_uploader(
-            "Gebäudedaten laden", type=["json"], help="Wähle eine building_data*.json Datei zum Laden"
+        st.file_uploader(
+            "Gebäudedaten laden", type=["json"], help="Wähle eine building_data*.json Datei zum Laden", on_change=building_uploader_changed, key="building_uploader"
         )
-
-        if uploaded_file is not None:
-            try:
-                data = json.load(uploaded_file)
-                st.session_state.building = Building.model_validate(data)
-                st.success(f"✅ Datei '{uploaded_file.name}' erfolgreich geladen!")
-                # Speichere das geladene Gebäude direkt
-                save_building(st.session_state.building)
-            except Exception as e:
-                st.error(f"❌ Fehler beim Laden der Datei: {e}")
 
         st.divider()
 
