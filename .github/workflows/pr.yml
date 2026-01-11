@@ -1,0 +1,41 @@
+name: Build PR
+
+on:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+          - os: windows-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Run Unit Tests
+        run: |
+          echo "🧪 Running unit tests..."
+          python -m pytest tests/ -v
+          echo "✅ All tests passed!"
+
+      - name: Build Executable
+        run: |
+          echo "🔨 Building executable with PyInstaller..."
+          pyinstaller app.spec --clean
+          echo "✅ Build complete!"
