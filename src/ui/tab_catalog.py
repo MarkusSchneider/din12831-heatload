@@ -53,7 +53,7 @@ def render_catalog_add_form() -> None:
         if has_thickness:
             with cols[3]:
                 catalog_thickness = st.number_input(
-                    "Dicke (m)", min_value=0.00, value=0.30, step=0.01, key="catalog_thickness"
+                    "Dicke (mm)", min_value=0.0, value=300.0, step=0.1, key="catalog_thickness", format="%0.1f"
                 )
 
         if st.button("Konstruktion hinzufügen", type="primary", key="add_catalog"):
@@ -65,7 +65,7 @@ def render_catalog_add_form() -> None:
                 name=catalog_name,
                 element_type=element_type,
                 u_value_w_m2k=catalog_u,
-                thickness_m=catalog_thickness,
+                thickness_mm=catalog_thickness,
             )
             st.session_state.building.construction_catalog.append(new_construction)
             save_building(st.session_state.building)
@@ -103,7 +103,7 @@ def render_catalog_list() -> None:
         with cols[2]:
             st.write(f"U: {construction.u_value_w_m2k:.3f} W/m²K")
         with cols[3]:
-            thickness_text = f"{construction.thickness_m:.3f} m" if construction.thickness_m else "—"
+            thickness_text = f"{construction.thickness_mm:.1f} mm" if construction.thickness_mm else "—"
             st.write(f"Dicke: {thickness_text}")
         with cols[4]:
             if st.button("🗑️", key=f"delete_catalog_{idx}"):
