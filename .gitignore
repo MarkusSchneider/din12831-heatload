@@ -18,4 +18,5 @@ dist/
 build/
 
 # application files
-building_data_Demo.json
+!building_data_Demo.json
+building_data*.json
